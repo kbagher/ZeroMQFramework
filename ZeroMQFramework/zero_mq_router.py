@@ -62,8 +62,9 @@ class ZeroMQRouter(ZeroMQBase):
             print(f"ZMQ Error occurred: {e}")
         except Exception as e:
             print(f"Unknown exception occurred: {e}")
-        finally:
-            print("Router is stopping...")
+            self.stop()
+        # finally:
+        #     print("Router is stopping...")
 
     def start_backend(self, backend):
         backend_poller = zmq.Poller()

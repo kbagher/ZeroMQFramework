@@ -20,17 +20,21 @@ def main():
     # Create a message using the create_message function
     print(f"Sending:")
 
-    for i in range(10000):
+    for i in range(100000):
         event_name = "Message"
         event_data = {"content": f"Message {i} from client {client_id}"}
         message = create_message(event_name, event_data)
         # print(f"Sending: {event_data}")
         socket.send_multipart(message)
         reply = socket.recv_multipart()
+        # Decode the second element of the reply
+        print(reply)
+        reply_json_str = reply[1].decode('utf-8')
+        reply_content = json.loads(reply_json_str)
+        # Assuming the JSON string is a list with one dictionary element
+        message_content = reply_content[0]['event_data']['content']
 
-        # Parse the reply and extract the client ID
-        reply_content = json.loads(reply[1].decode('utf-8'))
-        received_id = reply_content['event_data']['content'].split()[-1]
+        received_id = message_content.split()[-1]
 
         # Check if the ID matches
         if received_id != client_id:
