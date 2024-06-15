@@ -1,9 +1,8 @@
 from .zero_mq_base import ZeroMQBase
 from .config import ZeroMQProtocol
 import zmq
-from typing import List
-from .utils import create_message, parse_message
 import threading
+import signal
 
 
 class ZeroMQRouter(ZeroMQBase):
@@ -12,10 +11,17 @@ class ZeroMQRouter(ZeroMQBase):
         super().__init__(port, protocol, max_threads)
         self.backend_port = backend_port
         self.backend_protocol = backend_protocol
-        self.workers = []
         self.running = True
-        self.frontend = None  # Initialize frontend attribute
-        self.backend = None   # Initialize backend attribute
+        self.frontend = None
+        self.backend = None
+
+        signal.signal(signal.SIGINT, self.request_shutdown)
+        signal.signal(signal.SIGTERM, self.request_shutdown)
+
+    def request_shutdown(self, signum, frame):
+        print(f"Received signal {signum}, shutting down gracefully...")
+        self.running = False
+        self.cleanup()
 
     def start(self):
         context = self.context
@@ -25,81 +31,36 @@ class ZeroMQRouter(ZeroMQBase):
         frontend_connection_string = f"{self.protocol}://*:{self.port}"
         backend_connection_string = f"{self.backend_protocol.value}://*:{self.backend_port}"
 
-        self.frontend.bind(frontend_connection_string)
-        self.backend.bind(backend_connection_string)
-
-        print(
-            f"Router started and bound to frontend {frontend_connection_string} and backend {backend_connection_string}")
-
-        frontend_poller = zmq.Poller()
-        frontend_poller.register(self.frontend, zmq.POLLIN)
-
-        backend_poller = zmq.Poller()
-        backend_poller.register(self.backend, zmq.POLLIN)
-
-        worker_thread = threading.Thread(target=self.start_backend, args=(self.backend,))
-        worker_thread.start()
-
         try:
-            while self.running:
-                socks = dict(frontend_poller.poll(100))
+            self.frontend.bind(frontend_connection_string)
+            self.backend.bind(backend_connection_string)
 
-                if self.frontend in socks:
-                    message = self.frontend.recv_multipart()
-                    print(f"Router received message from client: {message}")
+            print(f"Router started and bound to frontend {frontend_connection_string} and backend {backend_connection_string}")
 
-                    if len(message) < 2:
-                        print(f"Malformed message received: {message}")
-                        continue
-
-                    client_address = message[0]
-                    event_name = message[2]
-                    event_data = message[3]
-                    self.backend.send_multipart([client_address, b'', event_name, event_data])
-                    print(f"Forwarding message {message} to worker")
-
-        except zmq.ZMQError as e:
-            print(f"ZMQ Error occurred: {e}")
-        except Exception as e:
-            print(f"Unknown exception occurred: {e}")
-            self.stop()
-        # finally:
-        #     print("Router is stopping...")
-
-    def start_backend(self, backend):
-        backend_poller = zmq.Poller()
-        backend_poller.register(backend, zmq.POLLIN)
-
-        try:
-            while self.running:
-                socks = dict(backend_poller.poll(100))
-
-                if backend in socks:
-                    message = backend.recv_multipart()
-                    print(f"Router received message from worker: {message}")
-
-                    if len(message) < 4:
-                        print(f"Malformed message received: {message}")
-                        continue
-
-                    client_address = message[0]
-                    event_name = message[2]
-                    event_data = message[3]
-                    self.frontend.send_multipart([client_address, b'', event_name, event_data])
-                    print(f"Forwarding response to client: {client_address}")
+            proxy_thread = threading.Thread(target=self._start_proxy)
+            proxy_thread.start()
+            proxy_thread.join()
 
         except zmq.ZMQError as e:
             print(f"ZMQ Error occurred: {e}")
         except Exception as e:
             print(f"Unknown exception occurred: {e}")
         finally:
-            print("Backend router is stopping...")
+            print("Router is stopping...")
+            self.cleanup()
 
-    def register_worker(self, worker):
-        if worker not in self.workers:
-            self.workers.append(worker)
+    def _start_proxy(self):
+        try:
+            zmq.proxy(self.frontend, self.backend)
+        except zmq.ZMQError as e:
+            print(f"ZMQ Proxy Error occurred: {e}")
+        finally:
+            print("Proxy is stopping...")
 
-    def remove_worker(self, worker):
-        if worker in self.workers:
-            self.workers.remove(worker)
-        print(f"Worker {worker} has been removed.")
+    def cleanup(self):
+        if self.frontend:
+            self.frontend.close()
+        if self.backend:
+            self.backend.close()
+        self.context.term()
+        print("Cleaned up ZeroMQ sockets and context.")

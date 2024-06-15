@@ -32,11 +32,12 @@ class MyWorker(ZeroMQWorker, threading.Thread):
         print(f"Worker connected to {connection_string}")
         self.process_messages()
 
+
 if __name__ == "__main__":
     port = 5556  # Backend port
     address = "localhost"
     protocol = ZeroMQProtocol.TCP
-    max_threads = 1
+    max_threads = 5
 
     threads = []
     for _ in range(max_threads):
@@ -46,4 +47,3 @@ if __name__ == "__main__":
 
     for thread in threads:
         thread.join()
-
