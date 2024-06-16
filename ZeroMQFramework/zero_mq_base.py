@@ -5,12 +5,10 @@ from typing import Any
 
 
 class ZeroMQBase:
-    def __init__(self, port: int, protocol: ZeroMQProtocol = ZeroMQProtocol.TCP, max_threads: int = 5):
+    def __init__(self, port: int, protocol: ZeroMQProtocol = ZeroMQProtocol.TCP):
         self.protocol = protocol.value
         self.port = port
-        self.max_threads = max_threads
         self.context = zmq.Context()
-        self.executor = ThreadPoolExecutor(max_workers=self.max_threads)
 
     def _build_connection_string(self, bind: bool) -> str:
         if bind:

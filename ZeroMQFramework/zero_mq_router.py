@@ -7,8 +7,8 @@ import signal
 
 class ZeroMQRouter(ZeroMQBase):
     def __init__(self, port: int, protocol: ZeroMQProtocol = ZeroMQProtocol.TCP, backend_port: int = 5556,
-                 backend_protocol: ZeroMQProtocol = ZeroMQProtocol.TCP, max_threads: int = 5):
-        super().__init__(port, protocol, max_threads)
+                 backend_protocol: ZeroMQProtocol = ZeroMQProtocol.TCP):
+        super().__init__(port, protocol)
         self.backend_port = backend_port
         self.backend_protocol = backend_protocol
         self.running = True
