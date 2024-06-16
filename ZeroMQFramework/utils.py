@@ -1,5 +1,7 @@
 import json
 
+from  ZeroMQFramework import ZeroMQProtocol
+
 
 def create_message(event_name: str, event_data: dict) -> list:
     try:
@@ -43,3 +45,13 @@ def parse_message(message: list) -> dict:
         }
     except Exception as e:
         raise ValueError(f"Error parsing message: {e}")
+
+
+def build_connection_string(bind: bool, protocol: ZeroMQProtocol, port: int, ipc_path: str = "/tmp/zmq.ipc") -> str:
+    if protocol == ZeroMQProtocol.TCP:
+        if bind:
+            return f"tcp://*:{port}"
+        else:
+            return f"tcp://localhost:{port}"
+    elif protocol == ZeroMQProtocol.IPC:
+        return f"ipc://{ipc_path}"

@@ -16,7 +16,7 @@ def signal_handler(signal, frame):
 if __name__ == "__main__":
     port = 5556  # Backend port
     address = "localhost"
-    protocol = ZeroMQProtocol.TCP
+    protocol = ZeroMQProtocol.IPC
     num_workers = 5  # Specify number of worker threads
 
     # Initialize and start the WorkerManager with the custom message handler

@@ -14,6 +14,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.address = address
         self.handle_message = handle_message
         self.shutdown_requested = False
+        # self.protocol = protocol
         self.daemon = True  # Optional: makes the thread a daemon thread
 
         signal.signal(signal.SIGINT, self.request_shutdown)
@@ -29,6 +30,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
     def start_worker(self):
         self.socket = self.context.socket(zmq.DEALER)
         connection_string = self._build_connection_string(bind=False)
+        print(connection_string)
         self.socket.connect(connection_string)
         print(f"Worker connected to {connection_string}")
         self.process_messages()

@@ -1,5 +1,6 @@
 from .zero_mq_base import ZeroMQBase
 from .config import ZeroMQProtocol
+from .utils import *
 import zmq
 import threading
 import signal
@@ -28,11 +29,15 @@ class ZeroMQRouter(ZeroMQBase):
         self.frontend = context.socket(zmq.ROUTER)
         self.backend = context.socket(zmq.DEALER)
 
-        frontend_connection_string = f"{self.protocol}://*:{self.port}"
-        backend_connection_string = f"{self.backend_protocol.value}://*:{self.backend_port}"
+        frontend_connection_string = f"{self.protocol.value}://*:{self.port}"
+
+        backend_connection_string = build_connection_string(True,self.backend_protocol, self.backend_port)
+        print(backend_connection_string)
+        # backend_connection_string = f"{self.backend_protocol.value}://*:{self.backend_port}"
 
         try:
             self.frontend.bind(frontend_connection_string)
+
             self.backend.bind(backend_connection_string)
 
             print(f"Router started and bound to frontend {frontend_connection_string} and backend {backend_connection_string}")
