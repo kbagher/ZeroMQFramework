@@ -1,5 +1,4 @@
-from typing import Any
-
+from typing import Callable, Any
 from .zero_mq_processing_base import ZeroMQProcessingBase
 from .config import ZeroMQProtocol
 import zmq
@@ -9,10 +8,11 @@ import threading
 
 
 class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
-    def __init__(self, port: int, protocol: ZeroMQProtocol = ZeroMQProtocol.TCP, address: str = "localhost"):
+    def __init__(self, port: int, protocol: ZeroMQProtocol = ZeroMQProtocol.TCP, address: str = "localhost", handle_message: Callable[[dict], Any] = None):
         ZeroMQProcessingBase.__init__(self, port, protocol)
         threading.Thread.__init__(self)
         self.address = address
+        self.handle_message = handle_message
         self.shutdown_requested = False
         self.daemon = True  # Optional: makes the thread a daemon thread
 
@@ -63,7 +63,10 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
 
     def process_message(self, parsed_message: dict) -> list:
         print(f"Processing message: {parsed_message}")
-        response_data = self.handle_message(parsed_message)
+        if self.handle_message:
+            response_data = self.handle_message(parsed_message)
+        else:
+            response_data = self.handle_message(parsed_message)
         msg = create_message(parsed_message["event_name"], response_data)
         return msg
 
@@ -74,5 +77,5 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.stop()
 
     def handle_message(self, message: dict) -> Any:
-        """To be implemented by subclasses"""
+        """To be implemented by passing a function during initialization"""
         raise NotImplementedError("Subclasses must implement this method.")
