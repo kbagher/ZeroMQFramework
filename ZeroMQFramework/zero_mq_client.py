@@ -18,7 +18,8 @@ class ZeroMQTimeoutError(ZeroMQClientError):
 
 
 class ZeroMQClient:
-    def __init__(self, port: int, protocol: ZeroMQProtocol = ZeroMQProtocol.TCP, timeout: int = 5000,
+    def __init__(self, port: int, host: str = 'localhost', protocol: ZeroMQProtocol = ZeroMQProtocol.TCP,
+                 timeout: int = 5000,
                  retry_attempts: int = 3, retry_timeout: int = 1000):
         self.port = port
         self.protocol = protocol
@@ -28,6 +29,7 @@ class ZeroMQClient:
         self.context = zmq.Context()
         self.socket = None
         self.connected = False
+        self.host = host
 
         signal.signal(signal.SIGINT, self.request_shutdown)
         signal.signal(signal.SIGTERM, self.request_shutdown)
@@ -35,7 +37,7 @@ class ZeroMQClient:
     def connect(self):
         self.socket = self.context.socket(zmq.REQ)
         self.socket.setsockopt(zmq.RCVTIMEO, self.timeout)
-        connection_string = f"{self.protocol.value}://localhost:{self.port}"
+        connection_string = f"{self.protocol.value}://{self.host}:{self.port}"
         self.socket.connect(connection_string)
         self.connected = True
         print("Client connected to server")
@@ -61,7 +63,7 @@ class ZeroMQClient:
         while attempts < self.retry_attempts:
             try:
                 self.socket.send_multipart(message)
-                res= self.receive_message()
+                res = self.receive_message()
                 return res
             except zmq.Again:
                 print("No response received within the timeout period, retrying...")
@@ -78,7 +80,7 @@ class ZeroMQClient:
             reply = self.socket.recv_multipart()
             return parse_message(reply)
         except zmq.Again as e:
-            raise ZeroMQTimeoutError("No response received within the timeout period")
+            raise ZeroMQTimeoutError(f"No response received within the timeout period {e}")
 
     def request_shutdown(self, signum, frame):
         print(f"Received signal {signum}, shutting down gracefully...")

@@ -1,20 +1,17 @@
-from .zero_mq_base import ZeroMQBase
-from .config import ZeroMQProtocol
-from .utils import *
+from .config import *
 import zmq
 import threading
 import signal
 
 
-class ZeroMQRouter(ZeroMQBase):
-    def __init__(self, port: int, protocol: ZeroMQProtocol = ZeroMQProtocol.TCP, backend_port: int = 5556,
-                 backend_protocol: ZeroMQProtocol = ZeroMQProtocol.TCP):
-        super().__init__(port, protocol)
-        self.backend_port = backend_port
-        self.backend_protocol = backend_protocol
+class ZeroMQRouter:
+    def __init__(self, frontend_connection: ZeroMQConnection, backend_connection: ZeroMQConnection):
+        self.frontend_connection = frontend_connection
+        self.backend_connection = backend_connection
         self.running = True
         self.frontend = None
         self.backend = None
+        self.context = zmq.Context()
 
         signal.signal(signal.SIGINT, self.request_shutdown)
         signal.signal(signal.SIGTERM, self.request_shutdown)
@@ -29,18 +26,17 @@ class ZeroMQRouter(ZeroMQBase):
         self.frontend = context.socket(zmq.ROUTER)
         self.backend = context.socket(zmq.DEALER)
 
-        frontend_connection_string = f"{self.protocol.value}://*:{self.port}"
-
-        backend_connection_string = build_connection_string(True,self.backend_protocol, self.backend_port)
-        print(backend_connection_string)
-        # backend_connection_string = f"{self.backend_protocol.value}://*:{self.backend_port}"
+        frontend_connection_string = self.frontend_connection.get_connection_string(bind=True)
+        backend_connection_string = self.backend_connection.get_connection_string(bind=True)
 
         try:
             self.frontend.bind(frontend_connection_string)
 
             self.backend.bind(backend_connection_string)
 
-            print(f"Router started and bound to frontend {frontend_connection_string} and backend {backend_connection_string}")
+            print(
+                f"Router started and bound to frontend {frontend_connection_string}"
+                f"and backend {backend_connection_string}")
 
             proxy_thread = threading.Thread(target=self._start_proxy)
             proxy_thread.start()
@@ -67,5 +63,7 @@ class ZeroMQRouter(ZeroMQBase):
             self.frontend.close()
         if self.backend:
             self.backend.close()
+        self.executor.shutdown(wait=True)
         self.context.term()
+
         print("Cleaned up ZeroMQ sockets and context.")

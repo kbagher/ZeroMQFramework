@@ -3,9 +3,11 @@ from typing import Any
 import sys
 
 
-def handle_message(message: dict) -> Any:
-    print(f"Custom handler received: {message}")
-    return [message]
+def create_handle_message() -> Callable[[dict], Any]:
+    def handle_message(message: dict) -> Any:
+        print(f"Custom handler received: {message}")
+        return [message]
+    return handle_message
 
 
 def signal_handler(signal, frame):
@@ -14,13 +16,14 @@ def signal_handler(signal, frame):
 
 
 if __name__ == "__main__":
-    port = 5556  # Backend port
-    address = "localhost"
-    protocol = ZeroMQProtocol.IPC
+    # Use an IPC connection for the workers if they are running on the same machine as the router
+    ipc_path = "/tmp/my_super_app.ipc"
+    worker_connection = ZeroMQIPCConnection(ipc_path=ipc_path)
+
     num_workers = 5  # Specify number of worker threads
 
     # Initialize and start the WorkerManager with the custom message handler
-    manager = ZeroMQWorkerManager(port, protocol, address, num_workers, handle_message)
+    manager = ZeroMQMultiThreadedWorkers(connection=worker_connection, num_workers=num_workers, handle_message_factory=create_handle_message)
     manager.start()
 
     # Handle shutdown signals

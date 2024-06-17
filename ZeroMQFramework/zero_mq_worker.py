@@ -1,6 +1,6 @@
 from typing import Callable, Any
 from .zero_mq_processing_base import ZeroMQProcessingBase
-from .config import ZeroMQProtocol
+from .config import *
 import zmq
 from .utils import create_message, parse_message
 import signal
@@ -8,14 +8,16 @@ import threading
 
 
 class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
-    def __init__(self, port: int, protocol: ZeroMQProtocol = ZeroMQProtocol.TCP, address: str = "localhost", handle_message: Callable[[dict], Any] = None):
-        ZeroMQProcessingBase.__init__(self, port, protocol)
+    def __init__(self, connection: ZeroMQConnection, handle_message: Callable[[dict], Any] = None,
+                 context: zmq.Context = None):
         threading.Thread.__init__(self)
-        self.address = address
+        self.connection = connection
         self.handle_message = handle_message
         self.shutdown_requested = False
-        # self.protocol = protocol
-        self.daemon = True  # Optional: makes the thread a daemon thread
+        self.context = context or zmq.Context()  # Use provided context (for worker manager) or create a new one for
+        # standalone worker
+        self.socket = self.context.socket(zmq.DEALER)
+        self.daemon = True  # True = Makes the thread a daemon thread
 
         signal.signal(signal.SIGINT, self.request_shutdown)
         signal.signal(signal.SIGTERM, self.request_shutdown)
@@ -28,8 +30,8 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.start_worker()
 
     def start_worker(self):
-        self.socket = self.context.socket(zmq.DEALER)
-        connection_string = self._build_connection_string(bind=False)
+
+        connection_string = self.connection.get_connection_string(bind=False)
         print(connection_string)
         self.socket.connect(connection_string)
         print(f"Worker connected to {connection_string}")
@@ -44,7 +46,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
                 socks = dict(poller.poll(100))
                 if self.socket in socks:
                     message = self.socket.recv_multipart()
-                    print(f"Worker received message: {message}")
+                    # print(f"Worker received message: {message}")
 
                     if len(message) < 4:
                         print(f"Malformed message received: {message}")
@@ -54,7 +56,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
                     parsed_message = parse_message(message[1:])
                     response = self.process_message(parsed_message)
                     if response:
-                        print(f"Worker sending response: {response}")
+                        # print(f"Worker sending response: {response}")
                         self.socket.send_multipart([client_address, b''] + response)
             except zmq.ZMQError as e:
                 print(f"ZMQ Error occurred: {e}")
@@ -76,7 +78,8 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         print("Worker is shutting down, performing cleanup...")
         poller.unregister(self.socket)
         self.socket.close()
-        self.stop()
+        self.executor.shutdown(wait=True)
+        self.context.term()
 
     def handle_message(self, message: dict) -> Any:
         """To be implemented by passing a function during initialization"""

@@ -1,24 +1,25 @@
 from typing import Callable, Any
 import signal
-from ZeroMQFramework import ZeroMQWorker, ZeroMQProtocol
+from ZeroMQFramework import *
 
 
-class ZeroMQWorkerManager:
-    def __init__(self, port: int, protocol: ZeroMQProtocol = ZeroMQProtocol.TCP, address: str = "localhost", num_workers: int = 1, handle_message: Callable[[dict], Any] = None):
-        self.port = port
-        self.protocol = protocol
-        self.address = address
+class ZeroMQMultiThreadedWorkers:
+    def __init__(self, connection: ZeroMQConnection, num_workers: int = 1,
+                 handle_message_factory: Callable[[], Callable[[dict], Any]] = None):
+        self.connection = connection
         self.num_workers = num_workers
         self.workers = []
-        self.handle_message = handle_message
+        self.handle_message_factory = handle_message_factory
         self.shutdown_requested = False
+        self.context = zmq.Context()  # Shared context for all workers
 
         signal.signal(signal.SIGINT, self.request_shutdown)
         signal.signal(signal.SIGTERM, self.request_shutdown)
 
     def start(self):
         for _ in range(self.num_workers):
-            worker = ZeroMQWorker(self.port, self.protocol, self.address, self.handle_message)
+            handle_message = self.handle_message_factory() if self.handle_message_factory else None
+            worker = ZeroMQWorker(self.connection, handle_message, self.context)
             worker.start()
             self.workers.append(worker)
         print(f"{self.num_workers} workers started.")
@@ -30,4 +31,10 @@ class ZeroMQWorkerManager:
             worker.request_shutdown(signum, frame)
         for worker in self.workers:
             worker.join()
+        self.cleanup()
         print("All workers have been stopped.")
+
+    def cleanup(self):
+        if not self.context.closed:
+            self.context.term()
+
