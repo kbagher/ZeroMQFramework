@@ -67,8 +67,9 @@ class ZeroMQHeartbeatHandler:
             try:
                 worker_id = self.heartbeat_queue.get(timeout=1)
                 with self.lock:
-                    self.worker_heartbeats[worker_id] = (time.time(), 0)
-                print(f"Processed heartbeat from {worker_id}")
+                    if worker_id not in self.worker_heartbeats:
+                        print(f"Worker {worker_id} is connected for the first time.")
+                    self.worker_heartbeats[worker_id] = (time.time(), 0)  # Reset missed count to 0
             except queue.Empty:
                 continue
 
@@ -85,8 +86,10 @@ class ZeroMQHeartbeatHandler:
                     if current_time - last_heartbeat > self.timeout:
                         missed_count += 1
                         if missed_count > self.max_missed:
-                            print(f"Worker {worker_id} missed too many heartbeats, marking as disconnected")
+                            disconnected_duration = current_time - last_heartbeat
+                            print(f"Worker {worker_id} missed too many heartbeats, marking as disconnected. "
+                                  f"Last heartbeat was {disconnected_duration:.2f} seconds ago.")
                             del self.worker_heartbeats[worker_id]
                         else:
                             self.worker_heartbeats[worker_id] = (last_heartbeat, missed_count)
-            time.sleep(self.interval)
+            time.sleep(self.interval)  # Sleep for the interval before next check

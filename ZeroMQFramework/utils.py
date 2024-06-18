@@ -4,7 +4,6 @@ import json
 def create_message(event_name: str, event_data: dict) -> list:
     try:
         return [
-            # b'',  # Empty Frame
             event_name.encode('utf-8'),  # Event Name
             json.dumps(event_data).encode('utf-8')  # Event Data
         ]

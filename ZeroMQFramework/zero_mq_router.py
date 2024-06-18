@@ -1,4 +1,5 @@
 from .config import *
+from .utils import *
 from .zero_mq_routing_strategy import *
 from .zero_mq_heartbeat_handler import *
 import zmq
@@ -77,16 +78,20 @@ class ZeroMQRouter:
 
             if self.backend in socks and socks[self.backend] == zmq.POLLIN:
                 message = self.backend.recv_multipart()
-                if self.is_heartbeat(message):
-                    self.heartbeat_handler.handle_heartbeat(message[1])
+                parsed_message = parse_message(message)
+                if self.is_heartbeat(parsed_message):
+                    self.heartbeat_handler.handle_heartbeat(parsed_message["event_data"]["worker_id"])
                 else:
                     if self.strategy:
                         self.strategy.route(self.frontend, self.backend)
                     else:
                         self.frontend.send_multipart(message)
 
-    def is_heartbeat(self, message):
-        return message[0] == b'HEARTBEAT'
+    def is_heartbeat(self, parsed_message):
+        try:
+            return parsed_message["event_name"] == "HEARTBEAT"
+        except ValueError:
+            return False
 
     def cleanup(self):
         if self.frontend:
