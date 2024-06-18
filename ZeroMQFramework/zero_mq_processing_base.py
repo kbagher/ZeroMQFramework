@@ -1,4 +1,3 @@
-from .zero_mq_base import ZeroMQBase
 from typing import Any
 
 

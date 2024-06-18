@@ -30,9 +30,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.start_worker()
 
     def start_worker(self):
-
         connection_string = self.connection.get_connection_string(bind=False)
-        print(connection_string)
         self.socket.connect(connection_string)
         print(f"Worker connected to {connection_string}")
         self.process_messages()
@@ -56,13 +54,13 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
                     parsed_message = parse_message(message[1:])
                     response = self.process_message(parsed_message)
                     if response:
-                        # print(f"Worker sending response: {response}")
                         self.socket.send_multipart([client_address, b''] + response)
             except zmq.ZMQError as e:
                 print(f"ZMQ Error occurred: {e}")
             except Exception as e:
                 print(f"Unknown exception occurred: {e}")
 
+        # Exited the loop (self.shutdown_requested is true)
         self.cleanup(poller)
 
     def process_message(self, parsed_message: dict) -> list:
