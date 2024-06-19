@@ -1,6 +1,5 @@
 import random
 import string
-import time
 from ZeroMQFramework import *
 
 
@@ -16,11 +15,20 @@ def format_time(seconds):
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 
+def signal_handler(signal, frame):
+    Debug.warn("Main process received shutdown signal")
+    sys.exit(0)
+
+
 def main():
     client_id = generate_short_udid()
     client = ZeroMQClient(port=5555, host='localhost', protocol=ZeroMQProtocol.TCP, timeout=5000, retry_attempts=3,
                           retry_timeout=1000)
     batch_start_time = time.time()
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     try:
         client.connect()
         x = 0
@@ -36,7 +44,7 @@ def main():
                 response = client.send_message(event_name, event_data)
                 reply_content = response["event_data"][0]["event_data"]["content"]
                 received_id = reply_content.split()[-1]
-                x += 1
+
                 if x % batch_size == 0:
                     batch_elapsed_time = time.time() - batch_start_time  # Calculate elapsed time for the batch
                     overall_elapsed_time = time.time() - overall_start_time  # Calculate overall elapsed time
@@ -47,8 +55,9 @@ def main():
                         mode=LogMode.UPDATE)
                 if received_id != client_id:
                     Debug.error(f"Error: Mismatched client ID in reply. Sent: {client_id}, Received: {received_id}")
-                # else:
-                #     print(f"Received reply: {reply}")
+                if int(reply_content.split()[1]) != x:
+                    Debug.error(f"Error: Mismatched value. Sent: {x}, Received: {reply_content.split()[1]}")
+                x += 1
             except ZeroMQTimeoutError:
                 Debug.warn("No response received within the timeout period, retrying...")
                 # Implement retry logic or other actions
@@ -59,7 +68,7 @@ def main():
                 client.connect()
                 time.sleep(client.retry_timeout / 1000)
     except Exception as e:
-        Debug.error(f"An unexpected error occurred: {e}")
+        Debug.error(f"An unexpected error occurred", e)
     finally:
         client.cleanup()
 

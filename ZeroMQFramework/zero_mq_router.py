@@ -2,6 +2,8 @@ from .config import *
 from .utils import *
 from .zero_mq_routing_strategy import *
 from .zero_mq_heartbeat_handler import *
+from .zero_mq_error import *
+from .debug import Debug
 import zmq
 import threading
 import signal
@@ -12,7 +14,7 @@ class ZeroMQRouter:
                  strategy: Optional[ZeroMQRoutingStrategy] = None, heartbeat_enabled: bool = False, heartbeat_interval: int = 10, heartbeat_timeout: int = 30, max_missed: int = 3):
         self.frontend_connection = frontend_connection
         self.backend_connection = backend_connection
-        self.running = True
+        self.shutdown_requested = True
         self.frontend = None
         self.backend = None
         self.context = zmq.Context()
@@ -29,8 +31,7 @@ class ZeroMQRouter:
 
     def request_shutdown(self, signum, frame):
         print(f"Received signal {signum}, shutting down gracefully...")
-        self.running = False
-        self.cleanup()
+        self.shutdown_requested = False
 
     def start(self):
         context = self.context
@@ -61,7 +62,9 @@ class ZeroMQRouter:
         finally:
             print("Router is stopping...")
             if self.heartbeat_enabled:
+                print("Heartbeat is stopping...")
                 self.heartbeat_handler.stop()
+            print("Cleaning up...")
             self.cleanup()
 
     def _start_proxy(self):
@@ -69,23 +72,33 @@ class ZeroMQRouter:
         poller.register(self.frontend, zmq.POLLIN)
         poller.register(self.backend, zmq.POLLIN)
 
-        while self.running:
-            socks = dict(poller.poll())
+        while self.shutdown_requested:
+            socks = dict(poller.poll(timeout=4000))
+            try:
+                if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
+                    message = self.frontend.recv_multipart()
+                    self.backend.send_multipart(message)
 
-            if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
-                message = self.frontend.recv_multipart()
-                self.backend.send_multipart(message)
-
-            if self.backend in socks and socks[self.backend] == zmq.POLLIN:
-                message = self.backend.recv_multipart()
-                parsed_message = parse_message(message)
-                if self.is_heartbeat(parsed_message):
-                    self.heartbeat_handler.handle_heartbeat(parsed_message["event_data"]["worker_id"])
-                else:
-                    if self.strategy:
-                        self.strategy.route(self.frontend, self.backend)
+                if self.backend in socks and socks[self.backend] == zmq.POLLIN:
+                    message = self.backend.recv_multipart()
+                    try:
+                        parsed_message = parse_message(message)
+                        if self.heartbeat_enabled and self.is_heartbeat(parsed_message):
+                            self.heartbeat_handler.handle_heartbeat(parsed_message["event_data"]["worker_id"])
+                    except ZeroMQMalformedMessage as e:
+                        Debug.error(f"Error in message parsing or handling: {e}")
                     else:
-                        self.frontend.send_multipart(message)
+                        if self.strategy:
+                            self.strategy.route(self.frontend, self.backend)
+                        else:
+                            self.frontend.send_multipart(message)
+            except zmq.ZMQError as e:
+                print(f"ZMQ Error occurred: {e}")
+            except Exception as e:
+                print(f"Unknown exception occurred: {e}")
+
+        # Exited the loop (self.shutdown_requested is true)
+        self.cleanup(poller)
 
     def is_heartbeat(self, parsed_message):
         try:
@@ -93,11 +106,23 @@ class ZeroMQRouter:
         except ValueError:
             return False
 
-    def cleanup(self):
+    def cleanup(self, poller=None):
+        print("Router is shutting down, performing cleanup...")
+        if self.heartbeat_enabled:
+            print("Heartbeat is stopping...")
+            self.heartbeat_handler.stop()
         if self.frontend:
             self.frontend.close()
+            if poller:
+                poller.unregister(self.frontend)
         if self.backend:
             self.backend.close()
+            if poller:
+                poller.unregister(self.backend)
         self.context.term()
-
         print("Cleaned up ZeroMQ sockets and context.")
+
+
+
+
+

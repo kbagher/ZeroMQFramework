@@ -6,8 +6,9 @@ import zmq
 from .utils import create_message, parse_message
 import signal
 import threading
-import time
+from .debug import Debug
 import uuid
+import time
 
 
 class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
@@ -55,7 +56,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
 
         while not self.shutdown_requested:
             try:
-                socks = dict(poller.poll(100))
+                socks = dict(poller.poll(timeout=3000))
                 if self.socket in socks:
                     message = self.socket.recv_multipart()
                     # print(f"Worker received message: {message}")
@@ -87,6 +88,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         return msg
 
     def send_heartbeat(self):
+
         while not self.shutdown_requested:
             try:
                 event_data = {"worker_id": self.worker_id}

@@ -20,7 +20,7 @@ if __name__ == "__main__":
     ipc_path = "/tmp/my_super_app.ipc"
     worker_connection = ZeroMQIPCConnection(ipc_path=ipc_path)
 
-    num_workers = 5  # Specify number of worker threads
+    num_workers = 1  # Specify number of worker threads
 
     # Initialize and start the WorkerManager with the custom message handler
     manager = ZeroMQMultiThreadedWorkers(connection=worker_connection, num_workers=num_workers, handle_message_factory=create_handle_message)

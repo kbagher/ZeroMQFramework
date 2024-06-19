@@ -58,6 +58,17 @@ class ZeroMQHeartbeatHandler:
         """
         self.heartbeat_queue.put(worker_id)
 
+    #
+    def print_active_workers(self):
+        """
+        Prints a list of currently active workers.
+
+        Warning:
+            This method should always be called with the lock acquired to ensure thread safety.
+        """
+        active_workers = list(self.worker_heartbeats.keys())
+        print(f"Active workers: {active_workers}")
+
     def _process_heartbeats(self):
         """
         Processes heartbeat messages from the heartbeat queue and updates the worker_heartbeats dictionary.
@@ -69,7 +80,9 @@ class ZeroMQHeartbeatHandler:
                 with self.lock:
                     if worker_id not in self.worker_heartbeats:
                         print(f"Worker {worker_id} is connected for the first time.")
-                    self.worker_heartbeats[worker_id] = (time.time(), 0)  # Reset missed count to 0
+                    # Reset missed count to 0
+                    # Also, this will add the worker if not already added in the list
+                    self.worker_heartbeats[worker_id] = (time.time(), 0)
             except queue.Empty:
                 continue
 
@@ -81,6 +94,7 @@ class ZeroMQHeartbeatHandler:
         """
         while self.running:
             current_time = time.time()
+            print_workers = False
             with self.lock:
                 for worker_id, (last_heartbeat, missed_count) in list(self.worker_heartbeats.items()):
                     if current_time - last_heartbeat > self.timeout:
@@ -90,6 +104,9 @@ class ZeroMQHeartbeatHandler:
                             print(f"Worker {worker_id} missed too many heartbeats, marking as disconnected. "
                                   f"Last heartbeat was {disconnected_duration:.2f} seconds ago.")
                             del self.worker_heartbeats[worker_id]
+                            print_workers = True
                         else:
                             self.worker_heartbeats[worker_id] = (last_heartbeat, missed_count)
+                if print_workers:
+                    self.print_active_workers()  # Print active workers when at least one worker is disconnected
             time.sleep(self.interval)  # Sleep for the interval before next check
