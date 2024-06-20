@@ -79,7 +79,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.cleanup(poller)
 
     def process_message(self, parsed_message: dict) -> list:
-        print(f"Processing message: {parsed_message}")
+        # Debug.info(f"Processing message: {parsed_message}")
         if self.handle_message:
             response_data = self.handle_message(parsed_message)
         else:
@@ -88,7 +88,6 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         return msg
 
     def send_heartbeat(self):
-
         while not self.shutdown_requested:
             try:
                 event_data = {"worker_id": self.worker_id}
