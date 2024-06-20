@@ -26,7 +26,10 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.socket.setsockopt(zmq.IDENTITY, self.worker_id.encode('utf-8'))  # Set the worker ID
         self.daemon = True  # True = Makes the thread a daemon thread
         self.heartbeat_interval = heartbeat_interval
-        self.heartbeat_thread = None
+        self.should_send_heartbeat = heartbeat_interval > 0
+        self.last_heartbeat_time = 0
+        self.poll_timeout = 1000 # milliseconds
+        self.poll_timeout = self.heartbeat_interval if self.heartbeat_interval > 0 else self.poll_timeout
 
         signal.signal(signal.SIGINT, self.request_shutdown)
         signal.signal(signal.SIGTERM, self.request_shutdown)
@@ -43,11 +46,6 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.socket.connect(connection_string)
         print(f"Worker connected to {connection_string}")
 
-        # Start heartbeat if enabled
-        if self.heartbeat_interval > 0:
-            self.heartbeat_thread = threading.Thread(target=self.send_heartbeat)
-            self.heartbeat_thread.start()
-
         self.process_messages()
 
     def process_messages(self):
@@ -56,7 +54,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
 
         while not self.shutdown_requested:
             try:
-                socks = dict(poller.poll(timeout=3000))
+                socks = dict(poller.poll(timeout=self.poll_timeout))
                 if self.socket in socks:
                     message = self.socket.recv_multipart()
                     # print(f"Worker received message: {message}")
@@ -70,6 +68,10 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
                     response = self.process_message(parsed_message)
                     if response:
                         self.socket.send_multipart([client_address, b''] + response)
+
+                # Always call send_heartbeat to check if it's time to send a heartbeat
+                self.send_heartbeat()
+
             except zmq.ZMQError as e:
                 print(f"ZMQ Error occurred: {e}")
             except Exception as e:
@@ -88,12 +90,15 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         return msg
 
     def send_heartbeat(self):
-        while not self.shutdown_requested:
+        if not self.should_send_heartbeat:
+            return
+        current_time = time.time()
+        if (current_time - self.last_heartbeat_time) >= self.heartbeat_interval:
             try:
                 event_data = {"worker_id": self.worker_id}
                 heartbeat_message = create_message('HEARTBEAT', event_data)
                 self.socket.send_multipart(heartbeat_message)
-                time.sleep(self.heartbeat_interval)
+                self.last_heartbeat_time = current_time
             except zmq.ZMQError as e:
                 print(f"ZMQ Error occurred while sending heartbeat: {e}")
             except Exception as e:

@@ -19,7 +19,7 @@ class ZeroMQMultiThreadedWorkers:
     def start(self):
         for _ in range(self.num_workers):
             handle_message = self.handle_message_factory() if self.handle_message_factory else None
-            worker = ZeroMQWorker(self.connection, handle_message, self.context, heartbeat_interval=5)
+            worker = ZeroMQWorker(self.connection, handle_message, self.context, heartbeat_interval=500)
             worker.start()
             self.workers.append(worker)
         print(f"{self.num_workers} workers started.")
