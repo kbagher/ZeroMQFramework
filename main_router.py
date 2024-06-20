@@ -16,7 +16,7 @@ def main():
         backend_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
 
         # Initialize and start the router
-        router = ZeroMQRouter(frontend_connection=frontend_conn, backend_connection=backend_conn)
+        router = ZeroMQRouter(frontend_connection=frontend_conn, backend_connection=backend_conn,heartbeat_enabled=True, heartbeat_interval= 10, heartbeat_timeout= 30, max_missed= 1)
         router.start()
     except Exception as e:
         print(e)

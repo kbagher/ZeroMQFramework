@@ -1,5 +1,5 @@
 import threading
-import os
+import traceback
 import datetime
 import sys
 from enum import Enum
@@ -46,6 +46,9 @@ class Debug:
             with cls.mutex:
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 for message in messages:
+                    if isinstance(message, Exception) and mode == LogMode.NEWLINE:
+                        message = f"{message}\n{traceback.format_exc()}"
+
                     if mode == LogMode.UPDATE:
                         sys.stdout.write('\r')
                         sys.stdout.write(
