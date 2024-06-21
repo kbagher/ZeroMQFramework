@@ -1,12 +1,23 @@
 import json
+import time
 
 from ZeroMQFramework.helpers.zero_mq_event import ZeroMQEvent
+
+
+def get_current_time():
+    """
+    Get the current time in milliseconds.
+
+    :return: The current time in milliseconds.
+    :rtype: int
+    """
+    return int(time.time() * 1000)
 
 
 def create_message(event_name: str, event_data: dict) -> list:
     try:
         return [
-            b'', # Empty frame as per the ZeroMQ standard
+            b'',  # Empty frame as per the ZeroMQ standard
             event_name.encode('utf-8'),  # Event Name
             json.dumps(event_data).encode('utf-8')  # Event Data
         ]

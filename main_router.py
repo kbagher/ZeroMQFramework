@@ -18,7 +18,7 @@ def main():
         # Heartbeat
         ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
         heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
-        heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1, timeout=2, max_missed=1)
+        heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1, timeout=5, max_missed=1)
 
         # Initialize and start the router
         router = ZeroMQRouter(frontend_connection=frontend_conn, backend_connection=backend_conn,
