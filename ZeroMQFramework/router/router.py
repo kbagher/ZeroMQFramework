@@ -38,7 +38,7 @@ class ZeroMQRouter:
         signal.signal(signal.SIGTERM, self.request_shutdown)
 
     def request_shutdown(self, signum, frame):
-        print(f"Received signal {signum}, shutting down gracefully...")
+        Debug.warn(f"Received signal {signum}, shutting down gracefully...")
         self.shutdown_requested = False
 
     def start(self):
@@ -56,7 +56,7 @@ class ZeroMQRouter:
             self.frontend.bind(frontend_connection_string)
             self.backend.bind(backend_connection_string)
 
-            print(
+            Debug.info(
                 f"Router started and bound to frontend {frontend_connection_string} and backend {backend_connection_string}")
 
             proxy_thread = threading.Thread(target=self._start_proxy)
@@ -68,15 +68,15 @@ class ZeroMQRouter:
             proxy_thread.join()
 
         except zmq.ZMQError as e:
-            print(f"ZMQ Error occurred: {e}")
+            Debug.error(f"ZMQ Error occurred: {e}")
         except Exception as e:
-            print(f"Unknown exception occurred: {e}")
+            Debug.error(f"Unknown exception occurred: {e}")
         finally:
-            print("Router is stopping...")
+            Debug.info("Router is stopping...")
             if self.heartbeat_enabled:
-                print("Heartbeat is stopping...")
+                Debug.info("Heartbeat is stopping...")
                 self.heartbeat_handler.stop()
-            print("Cleaning up...")
+            Debug.info("Cleaning up...")
             self.cleanup()
 
     def _start_proxy(self):
@@ -105,9 +105,9 @@ class ZeroMQRouter:
                         else:
                             self.frontend.send_multipart(message)
             except zmq.ZMQError as e:
-                print(f"ZMQ Error occurred: {e}")
+                Debug.error(f"ZMQ Error occurred: {e}")
             except Exception as e:
-                print(f"Unknown exception occurred: {e}")
+                Debug.error(f"Unknown exception occurred: {e}")
 
         # Exited the loop (self.shutdown_requested is true)
         self.cleanup(poller)
@@ -119,9 +119,9 @@ class ZeroMQRouter:
             return False
 
     def cleanup(self, poller=None):
-        print("Router is shutting down, performing cleanup...")
+        Debug.info("Router is shutting down, performing cleanup...")
         if self.heartbeat_enabled:
-            print("Heartbeat is stopping...")
+            Debug.info("Heartbeat is stopping...")
             self.heartbeat_handler.stop()
         if self.frontend:
             self.frontend.close()
@@ -132,4 +132,4 @@ class ZeroMQRouter:
             if poller:
                 poller.unregister(self.backend)
         self.context.term()
-        print("Cleaned up ZeroMQ sockets and context.")
+        Debug.info("Cleaned up ZeroMQ sockets and context.")

@@ -5,6 +5,7 @@ from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 from ..helpers.node_type import ZeroMQNodeType
 from ..common.socket_monitor import ZeroMQSocketMonitor
 import zmq
+from ..helpers.debug import Debug
 
 
 class ZeroMQHeartbeat(ABC):
@@ -30,20 +31,20 @@ class ZeroMQHeartbeat(ABC):
                 connection_string = self.config.connection.get_connection_string(bind)
                 if bind:
                     self.socket.bind(connection_string)
-                    print(f'Bind successfully connected. {connection_string}')
+                    Debug.info(f'Bind successfully connected. {connection_string}')
                 else:
                     self.socket.connect(connection_string)
-                    print(f'Successfully connected. {connection_string}')
+                    Debug.info(f'Successfully connected. {connection_string}')
                 if self.node_type == ZeroMQNodeType.WORKER:
                     self.socket_monitor.start()  # Start the monitor after connecting
                 break
             except zmq.ZMQError as e:
-                print(f"ZMQ Error occurred during connect: {e}")
+                Debug.error(f"ZMQ Error occurred during connect: ", e)
                 time.sleep(self.config.interval)
                 self.socket.close()
                 self.socket = self.context.socket(self.get_socket_type())
             except Exception as e:
-                print(f"Unknown exception occurred during connect: {e}")
+                Debug.error(f"Unknown exception occurred during connect: ", e)
                 time.sleep(self.config.interval)
                 self.socket.close()
                 self.socket = self.context.socket(self.get_socket_type())

@@ -2,6 +2,7 @@ import uuid
 import zmq.utils.monitor
 import zmq
 from threading import Thread
+from ..helpers.debug import Debug
 
 
 class ZeroMQSocketMonitor:
@@ -22,7 +23,6 @@ class ZeroMQSocketMonitor:
         self.monitor_thread = Thread(target=self.monitor_events, daemon=True)
         self.monitor_thread.start()
 
-
     def stop(self):
         self.running = False
         if self.monitor_socket:
@@ -34,16 +34,17 @@ class ZeroMQSocketMonitor:
                 event = self.monitor_socket.recv_multipart()
                 event_dict = zmq.utils.monitor.parse_monitor_message(event)
                 event_type = event_dict['event']
-                if event_type == zmq.EVENT_CONNECTED:
+                print(event_dict)
+                if event_type == zmq.EVENT_CONNECTED or event_type == zmq.EVENT_HANDSHAKE_SUCCEEDED:
                     self.connected = True
-                    print("Connected to the router")
+                    Debug.info("Connected to the router")
                 elif event_type == zmq.EVENT_DISCONNECTED:
                     self.connected = False
-                    print("Disconnected from the router")
-            except zmq.error.Again:
+                    Debug.info("Disconnected from the router")
+            except zmq.error.Again as e:
                 pass
             except Exception as e:
-                print(f"Monitor exception: {e}")
+                Debug.error(f"Monitor exception:", e)
 
     def is_connected(self):
         return self.connected

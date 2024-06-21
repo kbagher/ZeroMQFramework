@@ -21,6 +21,7 @@ def signal_handler(signal, frame):
 
 
 def main():
+    Debug.configure_logger('logs/client_logs')
     client_id = generate_short_udid()
     client = ZeroMQClient(port=5555, host='localhost', protocol=ZeroMQProtocol.TCP, timeout=5000, retry_attempts=3,
                           retry_timeout=1000)
