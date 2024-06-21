@@ -1,10 +1,10 @@
 import time
 import zmq
 from ..heartbeat import ZeroMQHeartbeatConfig, ZeroMQHeartbeat
-from ..helpers.zero_mq_node_type import ZeroMQNodeType
+from ..helpers.node_type import ZeroMQNodeType
 from ..helpers.utils import create_message
-from ..helpers.zero_mq_event import ZeroMQEvent
-from ..common.zero_mq_socket_monitor import ZeroMQSocketMonitor
+from ..helpers.event import ZeroMQEvent
+from ..common.socket_monitor import ZeroMQSocketMonitor
 
 
 class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
@@ -26,8 +26,9 @@ class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
                     print("Cannot reach router, discarding heartbeat...")
                     continue
 
-                message = create_message(ZeroMQEvent.HEARTBEAT.value, {"node_id": self.node_id})
-                print(message)
+                message = create_message(ZeroMQEvent.HEARTBEAT.value, {"node_id": self.node_id},
+                                         include_empty_frame=True)
+                # print(message)
                 self.socket.send_multipart(message)
                 # print(f"Heartbeat sent: {message}")
             except zmq.ZMQError as e:

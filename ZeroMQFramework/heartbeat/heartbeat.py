@@ -1,9 +1,9 @@
 import threading
 import time
 from abc import ABC, abstractmethod
-from ..heartbeat.zero_mq_heartbeat_config import ZeroMQHeartbeatConfig
-from ..helpers.zero_mq_node_type import ZeroMQNodeType
-from ..common.zero_mq_socket_monitor import ZeroMQSocketMonitor
+from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
+from ..helpers.node_type import ZeroMQNodeType
+from ..common.socket_monitor import ZeroMQSocketMonitor
 import zmq
 
 

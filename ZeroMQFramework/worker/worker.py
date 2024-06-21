@@ -1,11 +1,11 @@
 from typing import Callable, Any
-from ..common.zero_mq_processing_base import ZeroMQProcessingBase
+from ..common.processing_base import ZeroMQProcessingBase
 from ..helpers.config import *
 import zmq
 from ..helpers.utils import create_message, parse_message
-from ..helpers.zero_mq_node_type import ZeroMQNodeType
-from ..heartbeat.zero_mq_heartbeat_sender import ZeroMQHeartbeatSender
-from ..heartbeat.zero_mq_heartbeat_config import ZeroMQHeartbeatConfig
+from ..helpers.node_type import ZeroMQNodeType
+from ..heartbeat.heartbeat_sender import ZeroMQHeartbeatSender
+from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 import signal
 import threading
 import uuid
@@ -85,7 +85,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.cleanup(poller)
 
     def process_message(self, parsed_message: dict) -> list:
-        # Debug.info(f"Processing message: {parsed_message}")
+        # print(f"Processing message: {parsed_message}")
         if self.handle_message:
             response_data = self.handle_message(parsed_message)
         else:

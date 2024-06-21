@@ -1,8 +1,6 @@
 import json
 import time
 
-from ZeroMQFramework.helpers.zero_mq_event import ZeroMQEvent
-
 
 def get_current_time():
     """
@@ -14,13 +12,16 @@ def get_current_time():
     return int(time.time() * 1000)
 
 
-def create_message(event_name: str, event_data: dict) -> list:
+def create_message(event_name: str, event_data: dict, include_empty_frame=False) -> list:
     try:
-        return [
-            b'',  # Empty frame as per the ZeroMQ standard
+        message = [
             event_name.encode('utf-8'),  # Event Name
             json.dumps(event_data).encode('utf-8')  # Event Data
         ]
+        if include_empty_frame:
+            # Insert an empty frame at the beginning
+            message.insert(0, b'')
+        return message
     except Exception as e:
         raise ValueError(f"Error creating message for event {event_name} and data {event_data}: {e}")
 
