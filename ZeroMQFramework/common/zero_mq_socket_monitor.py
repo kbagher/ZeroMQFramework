@@ -1,5 +1,5 @@
 import uuid
-
+import zmq.utils.monitor
 import zmq
 from threading import Thread
 
