@@ -2,10 +2,9 @@ import zmq
 import zmq.asyncio
 from zmq.utils.monitor import parse_monitor_message
 import threading
-from .debug import Debug
-from .config import ZeroMQConnection
+from ZeroMQFramework.helpers.debug import Debug
+from ZeroMQFramework.helpers.config import ZeroMQConnection
 from enum import IntFlag
-import struct
 
 
 class ZeroMQMonitorEvents(IntFlag):

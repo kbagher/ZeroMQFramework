@@ -1,28 +1,36 @@
-from .config import *
-from .utils import *
-from .zero_mq_routing_strategy import *
-from .zero_mq_heartbeat_handler import *
-from .zero_mq_error import *
-from .debug import Debug
+import uuid
+
+from ZeroMQFramework.helpers.config import *
+from ZeroMQFramework.helpers.utils import *
+from ZeroMQFramework.router.zero_mq_routing_strategy import *
+from ZeroMQFramework.helpers.zero_mq_error import *
+from ZeroMQFramework.helpers.debug import Debug
+from ZeroMQFramework.helpers.zero_mq_node_type import ZeroMQNodeType
+from ZeroMQFramework.heartbeat import ZeroMQHeartbeatReceiver, ZeroMQHeartbeatConfig
 import zmq
 import threading
 import signal
 
 
 class ZeroMQRouter:
-    def __init__(self, frontend_connection: ZeroMQConnection, backend_connection: ZeroMQConnection,
-                 strategy: Optional[ZeroMQRoutingStrategy] = None, heartbeat_enabled: bool = False, heartbeat_interval: int = 10, heartbeat_timeout: int = 30, max_missed: int = 3):
+    def __init__(self, frontend_connection: ZeroMQConnection, backend_connection: ZeroMQConnection, heartbeat_config: ZeroMQHeartbeatConfig = None,
+                 strategy: Optional[ZeroMQRoutingStrategy] = None):
         self.frontend_connection = frontend_connection
         self.backend_connection = backend_connection
         self.shutdown_requested = True
+        self.heartbeat_config = heartbeat_config
         self.frontend = None
         self.backend = None
         self.context = zmq.Context()
         self.strategy = strategy
-        self.heartbeat_enabled = heartbeat_enabled
+        self.heartbeat_enabled = ZeroMQHeartbeatConfig is not None
+
+        self.router_id = uuid.uuid4().__str__()
 
         if self.heartbeat_enabled:
-            self.heartbeat_handler = ZeroMQHeartbeatHandler(interval=heartbeat_interval, timeout=heartbeat_timeout, max_missed=max_missed)
+            self.heartbeat_handler = ZeroMQHeartbeatReceiver(context=self.context, node_id=self.router_id,
+                                                             node_type=ZeroMQNodeType.ROUTER,
+                                                             config=self.heartbeat_config)
         else:
             self.heartbeat_handler = None
 
@@ -36,7 +44,10 @@ class ZeroMQRouter:
     def start(self):
         context = self.context
         self.frontend = context.socket(zmq.ROUTER)
+        self.frontend.setsockopt(zmq.IDENTITY, self.router_id.encode('utf-8'))  # Set the worker ID
+
         self.backend = context.socket(zmq.DEALER)
+        self.backend.setsockopt(zmq.IDENTITY, self.router_id.encode('utf-8'))  # Set the worker ID
 
         frontend_connection_string = self.frontend_connection.get_connection_string(bind=True)
         backend_connection_string = self.backend_connection.get_connection_string(bind=True)
@@ -45,7 +56,8 @@ class ZeroMQRouter:
             self.frontend.bind(frontend_connection_string)
             self.backend.bind(backend_connection_string)
 
-            print(f"Router started and bound to frontend {frontend_connection_string} and backend {backend_connection_string}")
+            print(
+                f"Router started and bound to frontend {frontend_connection_string} and backend {backend_connection_string}")
 
             proxy_thread = threading.Thread(target=self._start_proxy)
             proxy_thread.start()
@@ -121,8 +133,3 @@ class ZeroMQRouter:
                 poller.unregister(self.backend)
         self.context.term()
         print("Cleaned up ZeroMQ sockets and context.")
-
-
-
-
-

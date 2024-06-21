@@ -1,5 +1,7 @@
 import json
 
+from ZeroMQFramework.helpers.zero_mq_event import ZeroMQEvent
+
 
 def create_message(event_name: str, event_data: dict) -> list:
     try:

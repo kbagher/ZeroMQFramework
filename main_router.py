@@ -15,8 +15,14 @@ def main():
         ipc_path = "/tmp/my_super_app.ipc" # IPC path, make sure it's unique for each application.
         backend_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
 
+        # Heartbeat
+        ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
+        heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+        heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, socket_type=zmq.ROUTER, interval=5, timeout=20, max_missed=5)
+
         # Initialize and start the router
-        router = ZeroMQRouter(frontend_connection=frontend_conn, backend_connection=backend_conn,heartbeat_enabled=True, heartbeat_interval= 10, heartbeat_timeout= 30, max_missed= 1)
+        router = ZeroMQRouter(frontend_connection=frontend_conn, backend_connection=backend_conn,
+                              heartbeat_config=heartbeat_config)
         router.start()
     except Exception as e:
         print(e)
