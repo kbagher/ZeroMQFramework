@@ -95,11 +95,10 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
 
     def cleanup(self, poller):
         print("Worker is shutting down, performing cleanup...")
-        if self.heartbeat_interval > 0:
+        if self.heartbeat_enabled > 0:
             self.heartbeat_sender.stop()
         poller.unregister(self.socket)
         self.socket.close()
-        self.executor.shutdown(wait=True)
         self.context.term()
 
     def handle_message(self, message: dict) -> Any:

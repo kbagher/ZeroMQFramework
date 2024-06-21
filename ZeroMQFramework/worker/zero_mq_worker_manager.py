@@ -1,5 +1,7 @@
 from typing import Callable, Any
 import signal
+
+import zmq
 from ZeroMQFramework import *
 from ZeroMQFramework import ZeroMQHeartbeatConfig
 

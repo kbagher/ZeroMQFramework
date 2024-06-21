@@ -5,6 +5,5 @@ from .client.zero_mq_client import *
 from .worker.zero_mq_worker_manager import *
 from .helpers.debug import *
 from .router.zero_mq_routing_strategy import *
-from .heartbeat.zero_mq_heartbeat_handler import *
 from .helpers.debug import Debug
 from .helpers.zero_mq_error import *
