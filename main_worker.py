@@ -20,10 +20,18 @@ if __name__ == "__main__":
     ipc_path = "/tmp/my_super_app.ipc"
     worker_connection = ZeroMQIPCConnection(ipc_path=ipc_path)
 
+    # Heartbeat
+    ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
+    heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    # heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5, timeout=20,
+    #                                          max_missed=5)
+    heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1)
+
     num_workers = 1  # Specify number of worker threads
 
     # Initialize and start the WorkerManager with the custom message handler
-    manager = ZeroMQMultiThreadedWorkers(connection=worker_connection, num_workers=num_workers, handle_message_factory=create_handle_message)
+    manager = ZeroMQMultiThreadedWorkers(connection=worker_connection, num_workers=num_workers,
+                                         handle_message_factory=create_handle_message, heartbeat_config=heartbeat_config)
     manager.start()
 
     # Handle shutdown signals

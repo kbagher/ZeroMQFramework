@@ -1,19 +1,19 @@
-import json
 from typing import Callable, Any
-from .zero_mq_processing_base import ZeroMQProcessingBase
-from .config import *
+from ..common.zero_mq_processing_base import ZeroMQProcessingBase
+from ..helpers.config import *
 import zmq
-from .utils import create_message, parse_message
+from ..helpers.utils import create_message, parse_message
+from ..helpers.zero_mq_node_type import ZeroMQNodeType
+from ..heartbeat.zero_mq_heartbeat_sender import ZeroMQHeartbeatSender
+from ..heartbeat.zero_mq_heartbeat_config import ZeroMQHeartbeatConfig
 import signal
 import threading
-from .debug import Debug
 import uuid
-import time
 
 
 class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
     def __init__(self, connection: ZeroMQConnection, handle_message: Callable[[dict], Any] = None,
-                 context: zmq.Context = None, heartbeat_interval: int = 0):
+                 context: zmq.Context = None, heartbeat_config: ZeroMQHeartbeatConfig = None):
         threading.Thread.__init__(self)
         self.connection = connection
         self.handle_message = handle_message
@@ -25,11 +25,17 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         # for each worker
         self.socket.setsockopt(zmq.IDENTITY, self.worker_id.encode('utf-8'))  # Set the worker ID
         self.daemon = True  # True = Makes the thread a daemon thread
-        self.heartbeat_interval = heartbeat_interval
-        self.should_send_heartbeat = heartbeat_interval > 0
-        self.last_heartbeat_time = 0
+
+        # Heartbeat
+        self.heartbeat_config = heartbeat_config
+        self.heartbeat_enabled = self.heartbeat_config is not None
+
+        if self.heartbeat_enabled:
+            self.heartbeat_sender = ZeroMQHeartbeatSender(context= self.context,
+                                                          node_id=self.worker_id, node_type=ZeroMQNodeType.WORKER,
+                                                          config = self.heartbeat_config)
+        #
         self.poll_timeout = 1000 # milliseconds
-        self.poll_timeout = self.heartbeat_interval if self.heartbeat_interval > 0 else self.poll_timeout
 
         signal.signal(signal.SIGINT, self.request_shutdown)
         signal.signal(signal.SIGTERM, self.request_shutdown)
@@ -45,8 +51,9 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         connection_string = self.connection.get_connection_string(bind=False)
         self.socket.connect(connection_string)
         print(f"Worker connected to {connection_string}")
-
+        self.heartbeat_sender.start()
         self.process_messages()
+
 
     def process_messages(self):
         poller = zmq.Poller()
@@ -69,9 +76,6 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
                     if response:
                         self.socket.send_multipart([client_address, b''] + response)
 
-                # Always call send_heartbeat to check if it's time to send a heartbeat
-                self.send_heartbeat()
-
             except zmq.ZMQError as e:
                 print(f"ZMQ Error occurred: {e}")
             except Exception as e:
@@ -89,26 +93,12 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         msg = create_message(parsed_message["event_name"], response_data)
         return msg
 
-    def send_heartbeat(self):
-        if not self.should_send_heartbeat:
-            return
-        current_time = time.time()
-        if (current_time - self.last_heartbeat_time) >= self.heartbeat_interval:
-            try:
-                event_data = {"worker_id": self.worker_id}
-                heartbeat_message = create_message('HEARTBEAT', event_data)
-                self.socket.send_multipart(heartbeat_message)
-                self.last_heartbeat_time = current_time
-            except zmq.ZMQError as e:
-                print(f"ZMQ Error occurred while sending heartbeat: {e}")
-            except Exception as e:
-                print(f"Unknown exception occurred while sending heartbeat: {e}")
-
     def cleanup(self, poller):
         print("Worker is shutting down, performing cleanup...")
+        if self.heartbeat_enabled > 0:
+            self.heartbeat_sender.stop()
         poller.unregister(self.socket)
         self.socket.close()
-        self.executor.shutdown(wait=True)
         self.context.term()
 
     def handle_message(self, message: dict) -> Any:
