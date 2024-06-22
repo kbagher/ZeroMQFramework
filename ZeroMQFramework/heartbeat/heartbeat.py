@@ -31,14 +31,16 @@ class ZeroMQHeartbeat(ABC):
         while self.running:
             try:
                 connection_string = self.config.connection.get_connection_string(bind)
+                # Always start the monitor before connecting with the socket.
+                # This ensures that you capture the initial events
+                if self.node_type == ZeroMQNodeType.WORKER:
+                    self.socket_monitor.start()  # Start the monitor after connecting
                 if bind:
                     self.socket.bind(connection_string)
                     Debug.info(f'Bind successfully connected. {connection_string}')
                 else:
                     self.socket.connect(connection_string)
                     Debug.info(f'Successfully connected. {connection_string}')
-                if self.node_type == ZeroMQNodeType.WORKER:
-                    self.socket_monitor.start()  # Start the monitor after connecting
                 break
             except zmq.ZMQError as e:
                 Debug.error(f"ZMQ Error occurred during connect: ", e)

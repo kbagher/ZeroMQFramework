@@ -17,9 +17,9 @@ class ZeroMQSocketMonitor:
     def start(self):
         self.running = True
         tmp_id = uuid.uuid4().hex[:8]
-        self.socket.monitor(f"inproc://{tmp_id}.sockets", zmq.EVENT_ALL)
+        self.socket.monitor(f"inproc://monitor.sock", zmq.EVENT_ALL)
         self.monitor_socket = self.context.socket(zmq.PAIR)
-        self.monitor_socket.connect(f"inproc://{tmp_id}.sockets")
+        self.monitor_socket.connect(f"inproc://monitor.sock")
         self.monitor_thread = Thread(target=self.monitor_events, daemon=True)
         self.monitor_thread.start()
 
@@ -34,7 +34,7 @@ class ZeroMQSocketMonitor:
         poller.register(self.monitor_socket, zmq.POLLIN)
 
         while self.running:
-            socks = dict(poller.poll(timeout=100))  # Poll with a timeout
+            socks = dict(poller.poll(timeout=3000))  # Poll with a timeout, will have to make it a config or anything
             if self.monitor_socket in socks:
                 try:
                     event = self.monitor_socket.recv_multipart(flags=zmq.NOBLOCK)
@@ -43,7 +43,7 @@ class ZeroMQSocketMonitor:
                     if event_type == zmq.EVENT_CONNECTED:
                         self.connected = True
                         Debug.info("Connected to the router")
-                    elif event_type == zmq.EVENT_DISCONNECTED:
+                    elif event_type == zmq.EVENT_DISCONNECTED or event_type == zmq.EVENT_CLOSED:
                         self.connected = False
                         Debug.info("Disconnected from the router")
                 except zmq.error.Again as e:

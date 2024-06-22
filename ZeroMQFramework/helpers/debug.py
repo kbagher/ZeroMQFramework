@@ -5,12 +5,15 @@ import sys
 import os
 import logging
 from enum import Enum
-from logging.handlers import TimedRotatingFileHandler, QueueHandler, QueueListener
+from logging.handlers import QueueHandler, QueueListener
 import queue
+from contextlib import contextmanager
+
 
 class LogMode(Enum):
     UPDATE = "update"
     NEWLINE = "newline"
+
 
 class Debug:
     enabled = True
@@ -82,38 +85,40 @@ class Debug:
     @classmethod
     def _log(cls, color_code, log_type, *messages, mode=LogMode.NEWLINE, force=False):
         if cls.enabled or force:
-            with cls.mutex:
-                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                for message in messages:
-                    log_message = f"[{timestamp}] {cls.prefix} {log_type}: {message}"
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                    # Print to console with color formatting
-                    if mode == LogMode.UPDATE:
-                        sys.stdout.write('\r')
-                        sys.stdout.write(f"{color_code}{log_message}{cls.ANSI_CODES['reset']}")
-                        sys.stdout.flush()
-                        cls.last_message = LogMode.UPDATE
-                    elif mode == LogMode.NEWLINE:
-                        if cls.last_message == LogMode.UPDATE:
-                            sys.stdout.write("\n")
-                        sys.stdout.write(f"{color_code}{log_message}{cls.ANSI_CODES['reset']}\n")
-                        sys.stdout.flush()
-                        cls.last_message = LogMode.NEWLINE
+            for message in messages:
+                if isinstance(message, Exception) and mode == LogMode.NEWLINE:
+                    message = f"{message}\n{traceback.format_exc()}"
 
-                    # Log to file without color formatting
-                    if cls.logger:
-                        if log_type == "INFO":
-                            cls.logger.info(message)
-                        elif log_type == "WARN":
-                            cls.logger.warning(message)
-                        elif log_type == "ERROR":
-                            cls.logger.error(message)
+                log_message = f"[{timestamp}] {cls.prefix} {log_type}: {message}"
+
+                # Print to console with color formatting
+                if mode == LogMode.UPDATE:
+                    sys.stdout.write('\r')
+                    sys.stdout.write(f"{color_code}{log_message}{cls.ANSI_CODES['reset']}")
+                    sys.stdout.flush()
+                    cls.last_message = LogMode.UPDATE
+                elif mode == LogMode.NEWLINE:
+                    if cls.last_message == LogMode.UPDATE:
+                        sys.stdout.write("\n")
+                    sys.stdout.write(f"{color_code}{log_message}{cls.ANSI_CODES['reset']}\n")
+                    sys.stdout.flush()
+                    cls.last_message = LogMode.NEWLINE
+
+                # Log to file without color formatting
+                if cls.logger:
+                    if log_type == "INFO":
+                        cls.logger.info(message)
+                    elif log_type == "WARN":
+                        cls.logger.warning(message)
+                    elif log_type == "ERROR":
+                        cls.logger.error(message)
 
     @classmethod
     def shutdown(cls):
         if cls.listener:
             cls.listener.stop()
-
 
 # import threading
 # import traceback
