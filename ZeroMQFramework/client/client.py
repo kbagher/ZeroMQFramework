@@ -72,10 +72,10 @@ class ZeroMQClient:
                 time.sleep(self.retry_timeout / 1000)
             except zmq.ZMQError as e:
                 if e.errno == zmq.EFSM or e.errno == zmq.EAGAIN:
-                    logger.error("Socket is in an invalid state, reconnecting socket.", e)
+                    logger.error("Socket is in an invalid state, reconnecting socket.")
                     self.reconnect()
                 else:
-                    logger.error(f"ZMQError occurred: {e}, reconnecting socket.", e)
+                    logger.error(f"ZMQError occurred: {e}, reconnecting socket.")
                     self.reconnect()
         raise ZeroMQTimeoutError("Unable to send message after several attempts")
 

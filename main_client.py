@@ -35,7 +35,7 @@ def main():
         x = 0
         overall_start_time = time.time()  # Record the overall start time
         batch_size = 100
-        while x < 1000000:
+        while x < 1000000 and (time.time() - overall_start_time) <= 10:
             try:
                 if x % batch_size == 0:
                     batch_start_time = time.time()  # Record the start time for the batch

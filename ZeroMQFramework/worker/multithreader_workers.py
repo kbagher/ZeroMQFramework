@@ -1,12 +1,15 @@
 import signal
+from typing import Callable
 
 from ZeroMQFramework import *
 from ZeroMQFramework import ZeroMQHeartbeatConfig
 from ZeroMQFramework import logger
 
+
 class ZeroMQMultiThreadedWorkers:
     def __init__(self, connection: ZeroMQConnection, num_workers: int = 1,
-                 handle_message_factory: Callable[[], Callable[[dict], Any]] = None, heartbeat_config: ZeroMQHeartbeatConfig = None):
+                 handle_message_factory: Callable[[], Callable[[dict], Any]] = None,
+                 heartbeat_config: ZeroMQHeartbeatConfig = None):
         self.connection = connection
         self.num_workers = num_workers
         self.heartbeat_config = heartbeat_config
@@ -39,4 +42,3 @@ class ZeroMQMultiThreadedWorkers:
     def cleanup(self):
         if not self.context.closed:
             self.context.term()
-

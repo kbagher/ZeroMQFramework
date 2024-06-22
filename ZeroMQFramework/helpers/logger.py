@@ -27,6 +27,7 @@ class logger:
     worker_thread = None
 
     ANSI_CODES = {
+        'black': "\033[30m",
         'red': "\033[31m",
         'green': "\033[32m",
         'yellow': "\033[33m",
@@ -77,7 +78,7 @@ class logger:
 
     @classmethod
     def info(cls, *messages, mode=LogMode.NEWLINE, force=False):
-        cls._enqueue_log(cls.ANSI_CODES['green'], "INFO", *messages, mode=mode, force=force)
+        cls._enqueue_log(cls.ANSI_CODES['black'], "INFO", *messages, mode=mode, force=force)
 
     @classmethod
     def warn(cls, *messages, mode=LogMode.NEWLINE, force=False):
