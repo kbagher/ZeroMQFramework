@@ -1,6 +1,7 @@
 from ZeroMQFramework import *
-from typing import Any
+from typing import Any, Callable
 import sys
+import signal
 
 
 def create_handle_message() -> Callable[[dict], Any]:
@@ -12,10 +13,14 @@ def create_handle_message() -> Callable[[dict], Any]:
 
 def signal_handler(signal, frame):
     print("Main process received shutdown signal")
+    manager.request_shutdown(signal,frame)  # Shutdown the manager
+    logger.shutdown()
     sys.exit(0)
 
 
 if __name__ == "__main__":
+    logger.configure_logger('logs/worker_logs')
+
     # Use an IPC connection for the workers if they are running on the same machine as the router
     ipc_path = "/tmp/my_super_app.ipc"
     worker_connection = ZeroMQIPCConnection(ipc_path=ipc_path)
@@ -23,8 +28,6 @@ if __name__ == "__main__":
     # Heartbeat
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
     heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
-    # heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5, timeout=20,
-    #                                          max_missed=5)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1)
 
     num_workers = 1  # Specify number of worker threads

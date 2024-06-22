@@ -2,6 +2,8 @@ from ZeroMQFramework import *
 
 
 def main():
+    logger.configure_logger('logs/router_logs')
+
     try:
         # Create frontend TCP connection.
         # This is the connection that will be used with clients

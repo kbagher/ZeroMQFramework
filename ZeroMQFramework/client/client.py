@@ -1,10 +1,9 @@
-import time
-
 import zmq
 
+from ZeroMQFramework import logger
 from ZeroMQFramework.helpers.config import *
 from ZeroMQFramework.helpers.utils import *
-from ZeroMQFramework.helpers.zero_mq_error import *
+from ZeroMQFramework.helpers.error import *
 
 
 class ZeroMQClient:
@@ -41,7 +40,7 @@ class ZeroMQClient:
         # print(self.monitor.get_current_state())
         #
 
-        Debug.info("Client connected to server")
+        logger.info("Client connected to server")
 
     def reconnect(self):
         self.cleanup_socket()
@@ -51,7 +50,7 @@ class ZeroMQClient:
                 self.connect()
                 return
             except zmq.ZMQError as e:
-                Debug.warn(f"Reconnect attempt {attempts + 1}/{self.retry_attempts} failed: {e}")
+                logger.warn(f"Reconnect attempt {attempts + 1}/{self.retry_attempts} failed: {e}")
                 attempts += 1
                 time.sleep(self.retry_timeout / 1000)
         raise ZeroMQConnectionError("Unable to reconnect after several attempts")
@@ -68,15 +67,15 @@ class ZeroMQClient:
                 res = self.receive_message()
                 return res
             except zmq.Again as e:
-                Debug.warn("No response received within the timeout period, retrying...")
+                logger.warn("No response received within the timeout period, retrying...")
                 attempts += 1
                 time.sleep(self.retry_timeout / 1000)
             except zmq.ZMQError as e:
                 if e.errno == zmq.EFSM or e.errno == zmq.EAGAIN:
-                    Debug.error("Socket is in an invalid state, reconnecting socket.", e)
+                    logger.error("Socket is in an invalid state, reconnecting socket.", e)
                     self.reconnect()
                 else:
-                    Debug.error(f"ZMQError occurred: {e}, reconnecting socket.", e)
+                    logger.error(f"ZMQError occurred: {e}, reconnecting socket.", e)
                     self.reconnect()
         raise ZeroMQTimeoutError("Unable to send message after several attempts")
 
@@ -85,28 +84,28 @@ class ZeroMQClient:
         return parse_message(reply)
 
     def request_shutdown(self, signum, frame):
-        Debug.warn(f"Client Received signal {signum}, shutting down gracefully...")
+        logger.warn(f"Client Received signal {signum}, shutting down gracefully...")
         self.shutdown = True
 
 
     def cleanup_socket(self):
-        Debug.info("Cleaning up socket")
+        logger.info("Cleaning up socket")
         if self.socket:
-            Debug.info("Closing socket")
+            logger.info("Closing socket")
             self.socket.close()
             self.connected = False
-            Debug.info("Socket closed")
+            logger.info("Socket closed")
 
     def cleanup(self):
         self.running = False
-        Debug.info("Cleaning up client...")
+        logger.info("Cleaning up client...")
         if self.monitor:
-            Debug.info("Cleaning up monitor")
+            logger.info("Cleaning up monitor")
             self.monitor.stop()
-            Debug.info("Monitor Cleaned")
+            logger.info("Monitor Cleaned")
 
         self.cleanup_socket()
-        Debug.info("Socket cleaned up")
-        Debug.info("Terminating context")
+        logger.info("Socket cleaned up")
+        logger.info("Terminating context")
         self.context.term()
-        Debug.info("Cleaned up ZeroMQ sockets and context.")
+        logger.info("Cleaned up ZeroMQ sockets and context.")

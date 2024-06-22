@@ -1,12 +1,13 @@
 import threading
-import time
+from ..helpers.logger import logger
 from collections import defaultdict
 
 import zmq
 
-from ..heartbeat import ZeroMQHeartbeatConfig, ZeroMQHeartbeat
-from ..helpers.zero_mq_node_type import ZeroMQNodeType
-from ..helpers.zero_mq_event import ZeroMQEvent
+from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
+from ..heartbeat.heartbeat import ZeroMQHeartbeat
+from ..helpers.node_type import ZeroMQNodeType
+from ..helpers.event import ZeroMQEvent
 from ..helpers.utils import *
 
 
@@ -15,14 +16,17 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
         super().__init__(context, node_id, node_type, config)
         self.node_heartbeats = defaultdict(lambda: (0, 0))
         self.lock = threading.Lock()
+        self.connected_nodes = set()
 
     def get_socket_type(self):
         return zmq.ROUTER
 
     def handle_heartbeat(self, node_id: str):
         with self.lock:
+            if node_id not in self.connected_nodes:
+                self.connected_nodes.add(node_id)
+                logger.info(f"Node {node_id} connected for the first time")
             self.node_heartbeats[node_id] = (get_current_time(), 0)
-        # print(f"Custom handler: Heartbeat received from {node_id}")
 
     def check_missed_heartbeats(self):
         current_time = get_current_time()
@@ -33,12 +37,13 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
                     missed_count += 1
                     if missed_count > self.config.max_missed:
                         nodes_to_remove.append(node_id)
-                        print(f"Node {node_id} removed after missing {missed_count} heartbeats")
+                        logger.info(f"Node {node_id} removed after missing {missed_count} heartbeats")
                     else:
                         self.node_heartbeats[node_id] = (last_heartbeat, missed_count)
 
             for node_id in nodes_to_remove:
                 del self.node_heartbeats[node_id]
+                self.connected_nodes.discard(node_id)  # Remove from connected nodes set
 
     def poll_sockets(self, poller):
         socks = dict(poller.poll(self.config.interval * 1000))
@@ -59,8 +64,8 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
                 self.poll_sockets(poller)
                 self.check_missed_heartbeats()
             except zmq.ZMQError as e:
-                print(f"ZMQ Error occurred: {e}")
+                logger.error(f"ZMQ Error occurred: {e}")
                 self.connect()
             except Exception as e:
-                print(f"Unknown exception occurred: {e}")
+                logger.error(f"Unknown exception occurred: {e}")
                 self.connect()
