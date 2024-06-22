@@ -2,7 +2,7 @@ import uuid
 import zmq.utils.monitor
 import zmq
 from threading import Thread
-from ..helpers.debug import Debug
+from ..helpers.logger import logger
 
 
 class ZeroMQSocketMonitor:
@@ -42,14 +42,14 @@ class ZeroMQSocketMonitor:
                     event_type = event_dict['event']
                     if event_type == zmq.EVENT_CONNECTED:
                         self.connected = True
-                        Debug.info("Connected to the router")
+                        logger.info("Connected to the router")
                     elif event_type == zmq.EVENT_DISCONNECTED or event_type == zmq.EVENT_CLOSED:
                         self.connected = False
-                        Debug.info("Disconnected from the router")
+                        logger.info("Disconnected from the router")
                 except zmq.error.Again as e:
                     pass  # Handle non-blocking receive timeout
                 except Exception as e:
-                    Debug.error("Monitor exception:", e)
+                    logger.error("Monitor exception:", e)
         self.cleanup()
 
     def cleanup(self):

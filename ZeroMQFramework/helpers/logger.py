@@ -14,7 +14,7 @@ class LogMode(Enum):
     NEWLINE = "newline"
 
 
-class Debug:
+class logger:
     enabled = True
     mutex = threading.Lock()
     prefix = ""

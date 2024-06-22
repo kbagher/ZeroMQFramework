@@ -9,7 +9,7 @@ from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 import signal
 import threading
 import uuid
-from ..helpers.debug import Debug
+from ..helpers.logger import logger
 
 
 class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
@@ -42,7 +42,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         signal.signal(signal.SIGTERM, self.request_shutdown)
 
     def request_shutdown(self, signum, frame):
-        Debug.warn(f"Received signal {signum}, shutting down gracefully...")
+        logger.warn(f"Received signal {signum}, shutting down gracefully...")
         self.shutdown_requested = True
 
     def run(self):
@@ -51,7 +51,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
     def start_worker(self):
         connection_string = self.connection.get_connection_string(bind=False)
         self.socket.connect(connection_string)
-        Debug.info(f"Worker connected to {connection_string}")
+        logger.info(f"Worker connected to {connection_string}")
         self.heartbeat_sender.start()
         self.process_messages()
 
@@ -67,7 +67,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
                     # print(f"Worker received message: {message}")
 
                     if len(message) < 4:
-                        Debug.error(f"Malformed message received: {message}")
+                        logger.error(f"Malformed message received: {message}")
                         continue
 
                     client_address = message[0]
@@ -77,9 +77,9 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
                         self.socket.send_multipart([client_address, b''] + response)
 
             except zmq.ZMQError as e:
-                Debug.error(f"ZMQ Error occurred: {e}")
+                logger.error(f"ZMQ Error occurred: {e}")
             except Exception as e:
-                Debug.error(f"Unknown exception occurred: {e}")
+                logger.error(f"Unknown exception occurred: {e}")
 
         # Exited the loop (self.shutdown_requested is true)
         self.cleanup(poller)
@@ -94,9 +94,9 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         return msg
 
     def cleanup(self, poller):
-        Debug.info("Worker is shutting down, performing cleanup...")
+        logger.info("Worker is shutting down, performing cleanup...")
         if self.heartbeat_enabled:
-            Debug.info("Worker is calling stop heartbeat...")
+            logger.info("Worker is calling stop heartbeat...")
             self.heartbeat_sender.stop()  # Wait for the heartbeat thread to stop
         poller.unregister(self.socket)
         self.socket.close()

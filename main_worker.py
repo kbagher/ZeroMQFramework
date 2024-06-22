@@ -14,12 +14,12 @@ def create_handle_message() -> Callable[[dict], Any]:
 def signal_handler(signal, frame):
     print("Main process received shutdown signal")
     manager.request_shutdown(signal,frame)  # Shutdown the manager
-    Debug.shutdown()
+    logger.shutdown()
     sys.exit(0)
 
 
 if __name__ == "__main__":
-    Debug.configure_logger('logs/worker_logs')
+    logger.configure_logger('logs/worker_logs')
 
     # Use an IPC connection for the workers if they are running on the same machine as the router
     ipc_path = "/tmp/my_super_app.ipc"

@@ -16,12 +16,12 @@ def format_time(seconds):
 
 
 def signal_handler(signal, frame):
-    Debug.warn("Main process received shutdown signal")
+    logger.warn("Main process received shutdown signal")
     sys.exit(0)
 
 
 def main():
-    Debug.configure_logger('logs/client_logs')
+    logger.configure_logger('logs/client_logs')
     client_id = generate_short_udid()
     client = ZeroMQClient(port=5555, host='localhost', protocol=ZeroMQProtocol.TCP, timeout=5000, retry_attempts=3,
                           retry_timeout=1000)
@@ -54,7 +54,7 @@ def main():
                     batch_elapsed_time = time.time() - batch_start_time  # Calculate elapsed time for the batch
                     overall_elapsed_time = time.time() - overall_start_time  # Calculate overall elapsed time
                     overall_time_formatted = format_time(overall_elapsed_time)
-                    Debug.info(
+                    logger.info(
                         f"Messages Sent: {x}, Batch time: {batch_elapsed_time:.2f}"
                         f"seconds, Overall time: {overall_time_formatted}",
                         mode=LogMode.UPDATE)
@@ -64,22 +64,22 @@ def main():
                 #     Debug.error(f"Error: Mismatched value. Sent: {x}, Received: {reply_content.split()[1]}")
                 x += 1
             except ZeroMQMalformedMessage:
-                Debug.error(f"Error: Message malformed: {client_id}")
+                logger.error(f"Error: Message malformed: {client_id}")
             except ZeroMQTimeoutError:
-                Debug.warn("No response received within the timeout period, retrying...")
+                logger.warn("No response received within the timeout period, retrying...")
                 # Implement retry logic or other actions
                 time.sleep(client.retry_timeout / 1000)  # Optional: wait before retrying
             except ZeroMQConnectionError as e:
-                Debug.error(f"ZeroMQConnectionError occurred: {e}, reconnecting client.")
+                logger.error(f"ZeroMQConnectionError occurred: {e}, reconnecting client.")
                 client.cleanup()
                 client.connect()
                 time.sleep(client.retry_timeout / 1000)
     except Exception as e:
-        Debug.error(f"An unexpected error occurred", e)
+        logger.error(f"An unexpected error occurred", e)
     finally:
         client.cleanup()
 
-    Debug.info(f"Done Sending:")
+    logger.info(f"Done Sending:")
 
 
 if __name__ == "__main__":
