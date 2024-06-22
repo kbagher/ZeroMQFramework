@@ -4,9 +4,10 @@ from ZeroMQFramework.helpers.config import *
 from ZeroMQFramework.helpers.utils import *
 from ZeroMQFramework.router.routing_strategy import *
 from ZeroMQFramework.helpers.error import *
-from ZeroMQFramework.helpers.debug import Debug
+from ZeroMQFramework.helpers.logger import logger
 from ZeroMQFramework.helpers.node_type import ZeroMQNodeType
-from ZeroMQFramework.heartbeat import ZeroMQHeartbeatReceiver, ZeroMQHeartbeatConfig
+from ZeroMQFramework.heartbeat.heartbeat_receiver import ZeroMQHeartbeatReceiver
+from ZeroMQFramework.heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 import zmq
 import threading
 import signal
@@ -38,7 +39,7 @@ class ZeroMQRouter:
         signal.signal(signal.SIGTERM, self.request_shutdown)
 
     def request_shutdown(self, signum, frame):
-        Debug.warn(f"Received signal {signum}, shutting down gracefully...")
+        logger.warn(f"Received signal {signum}, shutting down gracefully...")
         self.shutdown_requested = False
 
     def start(self):
@@ -56,7 +57,7 @@ class ZeroMQRouter:
             self.frontend.bind(frontend_connection_string)
             self.backend.bind(backend_connection_string)
 
-            Debug.info(
+            logger.info(
                 f"Router started and bound to frontend {frontend_connection_string} and backend {backend_connection_string}")
 
             proxy_thread = threading.Thread(target=self._start_proxy)
@@ -68,15 +69,15 @@ class ZeroMQRouter:
             proxy_thread.join()
 
         except zmq.ZMQError as e:
-            Debug.error(f"ZMQ Error occurred: {e}")
+            logger.error(f"ZMQ Error occurred: {e}")
         except Exception as e:
-            Debug.error(f"Unknown exception occurred: {e}")
+            logger.error(f"Unknown exception occurred: {e}")
         finally:
-            Debug.info("Router is stopping...")
+            logger.info("Router is stopping...")
             if self.heartbeat_enabled:
-                Debug.info("Heartbeat is stopping...")
+                logger.info("Heartbeat is stopping...")
                 self.heartbeat_handler.stop()
-            Debug.info("Cleaning up...")
+            logger.info("Cleaning up...")
             self.cleanup()
 
     def _start_proxy(self):
@@ -98,16 +99,16 @@ class ZeroMQRouter:
                         if self.heartbeat_enabled and self.is_heartbeat(parsed_message):
                             self.heartbeat_handler.handle_heartbeat(parsed_message["event_data"]["worker_id"])
                     except ZeroMQMalformedMessage as e:
-                        Debug.error(f"Error in message parsing or handling: {e}")
+                        logger.error(f"Error in message parsing or handling: {e}")
                     else:
                         if self.strategy:
                             self.strategy.route(self.frontend, self.backend)
                         else:
                             self.frontend.send_multipart(message)
             except zmq.ZMQError as e:
-                Debug.error(f"ZMQ Error occurred: {e}")
+                logger.error(f"ZMQ Error occurred: {e}")
             except Exception as e:
-                Debug.error(f"Unknown exception occurred: {e}")
+                logger.error(f"Unknown exception occurred: {e}")
 
         # Exited the loop (self.shutdown_requested is true)
         self.cleanup(poller)
@@ -119,9 +120,9 @@ class ZeroMQRouter:
             return False
 
     def cleanup(self, poller=None):
-        Debug.info("Router is shutting down, performing cleanup...")
+        logger.info("Router is shutting down, performing cleanup...")
         if self.heartbeat_enabled:
-            Debug.info("Heartbeat is stopping...")
+            logger.info("Heartbeat is stopping...")
             self.heartbeat_handler.stop()
         if self.frontend:
             self.frontend.close()
@@ -132,4 +133,4 @@ class ZeroMQRouter:
             if poller:
                 poller.unregister(self.backend)
         self.context.term()
-        Debug.info("Cleaned up ZeroMQ sockets and context.")
+        logger.info("Cleaned up ZeroMQ sockets and context.")

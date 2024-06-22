@@ -3,7 +3,7 @@ from .worker.worker import *
 from .router.router import *
 from .client.client import *
 from .worker.multithreader_workers import *
-from .helpers.debug import *
+from .helpers.logger import *
 from .router.routing_strategy import *
-from .helpers.debug import Debug
+from .helpers.logger import logger
 from .helpers.error import *

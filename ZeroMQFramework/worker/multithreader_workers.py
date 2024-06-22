@@ -1,6 +1,8 @@
+import signal
+
 from ZeroMQFramework import *
 from ZeroMQFramework import ZeroMQHeartbeatConfig
-
+from ZeroMQFramework import logger
 
 class ZeroMQMultiThreadedWorkers:
     def __init__(self, connection: ZeroMQConnection, num_workers: int = 1,
@@ -22,17 +24,17 @@ class ZeroMQMultiThreadedWorkers:
             worker = ZeroMQWorker(self.connection, handle_message, self.context, heartbeat_config=self.heartbeat_config)
             worker.start()
             self.workers.append(worker)
-        Debug.info(f"{self.num_workers} workers started.")
+        logger.info(f"{self.num_workers} workers started.")
 
     def request_shutdown(self, signum, frame):
-        Debug.warn("Received shutdown signal, stopping all workers...")
+        logger.warn("Received shutdown signal, stopping all workers...")
         self.shutdown_requested = True
         for worker in self.workers:
             worker.request_shutdown(signum, frame)
         for worker in self.workers:
             worker.join()
         self.cleanup()
-        Debug.info("All workers have been stopped.")
+        logger.info("All workers have been stopped.")
 
     def cleanup(self):
         if not self.context.closed:

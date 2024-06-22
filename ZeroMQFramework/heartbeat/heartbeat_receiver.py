@@ -1,10 +1,11 @@
 import threading
-from ..helpers.debug import Debug
+from ..helpers.logger import logger
 from collections import defaultdict
 
 import zmq
 
-from ..heartbeat import ZeroMQHeartbeatConfig, ZeroMQHeartbeat
+from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
+from ..heartbeat.heartbeat import ZeroMQHeartbeat
 from ..helpers.node_type import ZeroMQNodeType
 from ..helpers.event import ZeroMQEvent
 from ..helpers.utils import *
@@ -24,7 +25,7 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
         with self.lock:
             if node_id not in self.connected_nodes:
                 self.connected_nodes.add(node_id)
-                Debug.info(f"Node {node_id} connected for the first time")
+                logger.info(f"Node {node_id} connected for the first time")
             self.node_heartbeats[node_id] = (get_current_time(), 0)
 
     def check_missed_heartbeats(self):
@@ -36,7 +37,7 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
                     missed_count += 1
                     if missed_count > self.config.max_missed:
                         nodes_to_remove.append(node_id)
-                        Debug.info(f"Node {node_id} removed after missing {missed_count} heartbeats")
+                        logger.info(f"Node {node_id} removed after missing {missed_count} heartbeats")
                     else:
                         self.node_heartbeats[node_id] = (last_heartbeat, missed_count)
 
@@ -49,7 +50,6 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
         if self.socket in socks and socks[self.socket] == zmq.POLLIN:
             message = self.socket.recv_multipart()
             parsed_message = parse_message(message)
-            print(parsed_message)
             if parsed_message["event_name"] == ZeroMQEvent.HEARTBEAT.value:
                 node_id = parsed_message["event_data"]["node_id"]
                 self.handle_heartbeat(node_id)
@@ -64,8 +64,8 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
                 self.poll_sockets(poller)
                 self.check_missed_heartbeats()
             except zmq.ZMQError as e:
-                Debug.error(f"ZMQ Error occurred: {e}")
+                logger.error(f"ZMQ Error occurred: {e}")
                 self.connect()
             except Exception as e:
-                Debug.error(f"Unknown exception occurred: {e}")
+                logger.error(f"Unknown exception occurred: {e}")
                 self.connect()
