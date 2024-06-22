@@ -24,7 +24,7 @@ class ZeroMQRouter:
         self.backend = None
         self.context = zmq.Context()
         self.strategy = strategy
-        self.heartbeat_enabled = ZeroMQHeartbeatConfig is not None
+        self.heartbeat_enabled = heartbeat_config is not None
 
         self.router_id = uuid.uuid4().__str__()
 

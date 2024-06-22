@@ -1,6 +1,6 @@
 import time
 import zmq
-from ..heartbeat.heartbeat import ZeroMQHeartbeat
+from ..heartbeat.heartbeat import ZeroMQHeartbeat, ZeroMQHeartbeatType
 from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 from ..helpers.node_type import ZeroMQNodeType
 from ..helpers.utils import create_message
@@ -17,6 +17,9 @@ class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
     def get_socket_type(self):
         return zmq.DEALER
 
+    def get_heartbeat_type(self):
+        return ZeroMQHeartbeatType.SENDER
+
     def _run(self):
         self.connect()
         if self.socket_monitor.is_connected():
@@ -25,7 +28,7 @@ class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
             try:
                 time.sleep(self.config.interval)
                 if not self.socket_monitor.is_connected():
-                    logger.warn("Cannot reach router, discarding heartbeat...")
+                    logger.warn("Heartbeat cannot reach node, discarding heartbeat...")
                     continue
 
                 message = create_message(ZeroMQEvent.HEARTBEAT.value, {"node_id": self.node_id},

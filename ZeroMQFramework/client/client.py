@@ -1,14 +1,19 @@
+import uuid
+
 import zmq
 
-from ZeroMQFramework import logger
 from ZeroMQFramework.helpers.config import *
 from ZeroMQFramework.helpers.utils import *
 from ZeroMQFramework.helpers.error import *
+from ZeroMQFramework.heartbeat.heartbeat_sender import ZeroMQHeartbeatSender
+from ZeroMQFramework.heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
+from ZeroMQFramework.helpers.node_type import ZeroMQNodeType
 
 
 class ZeroMQClient:
     def __init__(self, port: int, host: str = 'localhost', protocol: ZeroMQProtocol = ZeroMQProtocol.TCP,
-                 timeout: int = 5000, retry_attempts: int = 3, retry_timeout: int = 1000):
+                 heartbeat_config: ZeroMQHeartbeatConfig = None, timeout: int = 5000,
+                 retry_attempts: int = 3, retry_timeout: int = 1000):
         self.port = port
         self.protocol = protocol
         self.timeout = timeout
@@ -21,24 +26,35 @@ class ZeroMQClient:
         self.poller = zmq.Poller()
         self.monitor = None
         self.shutdown = False
+        self.node_type = ZeroMQNodeType.CLIENT
+        self.heartbeat_started = False
+        # Random ID (not used in server but won't make any difference)
+        self.node_id = uuid.uuid4().__str__()
+
+        # Heartbeat
+        self.heartbeat_config = heartbeat_config
+        self.heartbeat_enabled = self.heartbeat_config is not None
+
+        # Sender heartbeat if it is a worker
+        if self.heartbeat_enabled:
+            self.heartbeat = ZeroMQHeartbeatSender(context=self.context,
+                                                   node_id=self.node_id, node_type=ZeroMQNodeType.CLIENT,
+                                                   config=self.heartbeat_config)
+        else:
+            self.heartbeat = None
+
 
     def connect(self):
         self.socket = self.context.socket(zmq.REQ)
         self.socket.setsockopt(zmq.RCVTIMEO, self.timeout)
         self.socket.setsockopt(zmq.SNDTIMEO, self.timeout)
+        self.socket.setsockopt(zmq.IDENTITY, self.node_id.encode('utf-8'))  # Set the worker ID
         connection_string = f"{self.protocol.value}://{self.host}:{self.port}"
         self.socket.connect(connection_string)
         self.connected = True
-
-        # # Set up monitoring with a new INPROC connection
-        # monitor_connection = ZeroMQINPROCConnection("monitor_socket")
-        # self.monitor = SocketMonitor(self.context, monitor_connection)
-        # monitor_url = self.monitor.setup_monitor()
-        # self.socket.monitor(monitor_url, zmq.EVENT_ALL)
-        # self.monitor.start()  # Run the monitor in a separate thread
-
-        # print(self.monitor.get_current_state())
-        #
+        if self.heartbeat_enabled and not self.heartbeat_started:
+            self.heartbeat.start()
+            self.heartbeat_started = False
 
         logger.info("Client connected to server")
 
@@ -72,10 +88,10 @@ class ZeroMQClient:
                 time.sleep(self.retry_timeout / 1000)
             except zmq.ZMQError as e:
                 if e.errno == zmq.EFSM or e.errno == zmq.EAGAIN:
-                    logger.error("Socket is in an invalid state, reconnecting socket.", e)
+                    logger.error("Socket is in an invalid state, reconnecting socket.")
                     self.reconnect()
                 else:
-                    logger.error(f"ZMQError occurred: {e}, reconnecting socket.", e)
+                    logger.error(f"ZMQError occurred: {e}, reconnecting socket.")
                     self.reconnect()
         raise ZeroMQTimeoutError("Unable to send message after several attempts")
 
@@ -86,7 +102,6 @@ class ZeroMQClient:
     def request_shutdown(self, signum, frame):
         logger.warn(f"Client Received signal {signum}, shutting down gracefully...")
         self.shutdown = True
-
 
     def cleanup_socket(self):
         logger.info("Cleaning up socket")
@@ -103,7 +118,9 @@ class ZeroMQClient:
             logger.info("Cleaning up monitor")
             self.monitor.stop()
             logger.info("Monitor Cleaned")
-
+        if self.heartbeat_enabled:
+            logger.info("Client is calling stop heartbeat...")
+            self.heartbeat.stop()  # Wait for the heartbeat thread to stop
         self.cleanup_socket()
         logger.info("Socket cleaned up")
         logger.info("Terminating context")

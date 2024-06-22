@@ -42,14 +42,15 @@ class ZeroMQSocketMonitor:
                     event_type = event_dict['event']
                     if event_type == zmq.EVENT_CONNECTED:
                         self.connected = True
-                        logger.info("Connected to the router")
-                    elif event_type == zmq.EVENT_DISCONNECTED or event_type == zmq.EVENT_CLOSED:
+                        logger.info("Socket monitor: Connected")
+                    # elif event_type == zmq.EVENT_DISCONNECTED or event_type == zmq.EVENT_CLOSED:
+                    elif event_type == zmq.EVENT_DISCONNECTED:
                         self.connected = False
-                        logger.info("Disconnected from the router")
+                        logger.info("Socket monitor: Disconnected")
                 except zmq.error.Again as e:
                     pass  # Handle non-blocking receive timeout
                 except Exception as e:
-                    logger.error("Monitor exception:", e)
+                    logger.error("Socket monitor exception:", e)
         self.cleanup()
 
     def cleanup(self):
