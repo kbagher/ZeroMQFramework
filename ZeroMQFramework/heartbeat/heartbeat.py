@@ -1,11 +1,18 @@
 import threading
 import time
 from abc import ABC, abstractmethod
+from enum import Enum
+
 from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 from ..helpers.node_type import ZeroMQNodeType
 from ..common.socket_monitor import ZeroMQSocketMonitor
 import zmq
 from ..helpers.logger import logger
+
+
+class ZeroMQHeartbeatType(Enum):
+    SENDER = "sender"
+    RECEIVER = "receiver"
 
 
 class ZeroMQHeartbeat(ABC):
@@ -22,6 +29,9 @@ class ZeroMQHeartbeat(ABC):
     def get_socket_type(self):
         raise NotImplementedError("Subclasses must implement get_socket_type method")
 
+    def get_heartbeat_type(self):
+        raise NotImplementedError("Subclasses must implement get_heartbeat_type method")
+
     def start(self):
         # Always use demon to avoid blocking the main app from exiting
         self.heartbeat_thread = threading.Thread(target=self._run, daemon=True)
@@ -33,14 +43,15 @@ class ZeroMQHeartbeat(ABC):
                 connection_string = self.config.connection.get_connection_string(bind)
                 # Always start the monitor before connecting with the socket.
                 # This ensures that you capture the initial events
-                if self.node_type == ZeroMQNodeType.WORKER:
+                # I use monitor on sender only as the senders will send the heartbeat and will know if the remote node is up or down
+                if self.get_heartbeat_type() is ZeroMQHeartbeatType.SENDER:
                     self.socket_monitor.start()  # Start the monitor after connecting
                 if bind:
                     self.socket.bind(connection_string)
-                    logger.info(f'Bind successfully connected. {connection_string}')
+                    logger.info(f'Heartbeat reciever bound successfully. {connection_string}')
                 else:
                     self.socket.connect(connection_string)
-                    logger.info(f'Successfully connected. {connection_string}')
+                    logger.info(f'Heartbeat sender connected successfully. {connection_string}')
                 break
             except zmq.ZMQError as e:
                 logger.error(f"ZMQ Error occurred during connect: ", e)
@@ -65,7 +76,6 @@ class ZeroMQHeartbeat(ABC):
             self.socket_monitor.stop()
         if self.socket is not None:
             self.socket.close()
-
 
     @abstractmethod
     def _run(self):

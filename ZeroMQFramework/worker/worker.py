@@ -5,6 +5,7 @@ import zmq
 from ..helpers.utils import create_message, parse_message
 from ..helpers.node_type import ZeroMQNodeType
 from ..heartbeat.heartbeat_sender import ZeroMQHeartbeatSender
+from ..heartbeat.heartbeat_receiver import ZeroMQHeartbeatReceiver
 from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 import signal
 import threading
@@ -38,9 +39,15 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
 
         # Sender heartbeat if it is a worker
         if self.heartbeat_enabled and self.node_type == ZeroMQNodeType.WORKER:
-            self.heartbeat_sender = ZeroMQHeartbeatSender(context=self.context,
-                                                          node_id=self.worker_id, node_type=ZeroMQNodeType.WORKER,
-                                                          config=self.heartbeat_config)
+            self.heartbeat = ZeroMQHeartbeatSender(context=self.context,
+                                                   node_id=self.worker_id, node_type=ZeroMQNodeType.WORKER,
+                                                   config=self.heartbeat_config)
+        elif self.heartbeat_enabled and self.node_type == ZeroMQNodeType.SERVER:
+            self.heartbeat = ZeroMQHeartbeatReceiver(context=self.context, node_id=self.worker_id,
+                                                     node_type=ZeroMQNodeType.SERVER,
+                                                     config=self.heartbeat_config)
+        else:
+            self.heartbeat = None
 
         self.poll_timeout = 1000  # milliseconds
 
@@ -63,8 +70,8 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         else:
             logger.info(f"{self.node_type.value} connected to {connection_string}")
 
-        if self.heartbeat_enabled and self.node_type is ZeroMQNodeType.WORKER:
-            self.heartbeat_sender.start()
+        if self.heartbeat_enabled:
+            self.heartbeat.start()
         self.process_messages()
 
     def process_messages(self):
@@ -113,7 +120,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         logger.info("Worker is shutting down, performing cleanup...")
         if self.heartbeat_enabled:
             logger.info("Worker is calling stop heartbeat...")
-            self.heartbeat_sender.stop()  # Wait for the heartbeat thread to stop
+            self.heartbeat.stop()  # Wait for the heartbeat thread to stop
         poller.unregister(self.socket)
         self.socket.close()
         self.context.term()

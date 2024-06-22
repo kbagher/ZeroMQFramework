@@ -23,7 +23,13 @@ def signal_handler(signal, frame):
 def main():
     logger.configure_logger('logs/client_logs')
     client_id = generate_short_udid()
-    client = ZeroMQClient(port=5555, host='localhost', protocol=ZeroMQProtocol.TCP, timeout=5000, retry_attempts=3,
+
+    ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
+    heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
+
+    client = ZeroMQClient(port=5555, host='localhost', heartbeat_config=heartbeat_config, protocol=ZeroMQProtocol.TCP,
+                          timeout=5000, retry_attempts=3,
                           retry_timeout=1000)
     batch_start_time = time.time()
 

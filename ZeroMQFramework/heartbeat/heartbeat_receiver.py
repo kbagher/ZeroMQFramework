@@ -5,7 +5,7 @@ from collections import defaultdict
 import zmq
 
 from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
-from ..heartbeat.heartbeat import ZeroMQHeartbeat
+from ..heartbeat.heartbeat import ZeroMQHeartbeat, ZeroMQHeartbeatType
 from ..helpers.node_type import ZeroMQNodeType
 from ..helpers.event import ZeroMQEvent
 from ..helpers.utils import *
@@ -20,6 +20,9 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
 
     def get_socket_type(self):
         return zmq.ROUTER
+
+    def get_heartbeat_type(self):
+        return ZeroMQHeartbeatType.RECEIVER
 
     def handle_heartbeat(self, node_id: str):
         with self.lock:
