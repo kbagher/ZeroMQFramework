@@ -35,7 +35,7 @@ class ZeroMQSocketMonitor:
                 event_dict = zmq.utils.monitor.parse_monitor_message(event)
                 event_type = event_dict['event']
                 print(event_dict)
-                if event_type == zmq.EVENT_CONNECTED or event_type == zmq.EVENT_HANDSHAKE_SUCCEEDED:
+                if event_type == zmq.EVENT_CONNECTED:
                     self.connected = True
                     Debug.info("Connected to the router")
                 elif event_type == zmq.EVENT_DISCONNECTED:

@@ -1,6 +1,7 @@
 import time
 import zmq
-from ..heartbeat import ZeroMQHeartbeatConfig, ZeroMQHeartbeat
+from ..heartbeat.heartbeat import ZeroMQHeartbeat
+from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 from ..helpers.node_type import ZeroMQNodeType
 from ..helpers.utils import create_message
 from ..helpers.event import ZeroMQEvent

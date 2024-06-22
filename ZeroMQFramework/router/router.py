@@ -6,7 +6,8 @@ from ZeroMQFramework.router.routing_strategy import *
 from ZeroMQFramework.helpers.error import *
 from ZeroMQFramework.helpers.debug import Debug
 from ZeroMQFramework.helpers.node_type import ZeroMQNodeType
-from ZeroMQFramework.heartbeat import ZeroMQHeartbeatReceiver, ZeroMQHeartbeatConfig
+from ZeroMQFramework.heartbeat.heartbeat_receiver import ZeroMQHeartbeatReceiver
+from ZeroMQFramework.heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 import zmq
 import threading
 import signal

@@ -4,7 +4,8 @@ from collections import defaultdict
 
 import zmq
 
-from ..heartbeat import ZeroMQHeartbeatConfig, ZeroMQHeartbeat
+from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
+from ..heartbeat.heartbeat import ZeroMQHeartbeat
 from ..helpers.node_type import ZeroMQNodeType
 from ..helpers.event import ZeroMQEvent
 from ..helpers.utils import *

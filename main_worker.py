@@ -16,7 +16,7 @@ def signal_handler(signal, frame):
 
 
 if __name__ == "__main__":
-    Debug.configure_logger('logs/worker_logs')
+    # Debug.configure_logger('logs/worker_logs')
 
     # Use an IPC connection for the workers if they are running on the same machine as the router
     ipc_path = "/tmp/my_super_app.ipc"
