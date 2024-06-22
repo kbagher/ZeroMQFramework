@@ -17,13 +17,15 @@ class ZeroMQHeartbeat(ABC):
         self.running = True
         self.socket = self.context.socket(self.get_socket_type())
         self.socket_monitor = ZeroMQSocketMonitor(context, self.socket)
+        self.heartbeat_thread = None
 
     def get_socket_type(self):
         raise NotImplementedError("Subclasses must implement get_socket_type method")
 
     def start(self):
         # Always use demon to avoid blocking the main app from exiting
-        threading.Thread(target=self._run, daemon=True).start()
+        self.heartbeat_thread = threading.Thread(target=self._run, daemon=True)
+        self.heartbeat_thread.start()
 
     def connect(self, bind=False):
         while self.running:
@@ -50,10 +52,18 @@ class ZeroMQHeartbeat(ABC):
                 self.socket = self.context.socket(self.get_socket_type())
 
     def stop(self):
+        Debug.info("Stopping heartbeat")
         self.running = False
-        if self.socket_monitor.monitor_socket:
-            self.socket_monitor.monitor_socket.close()
-        self.socket.close()
+        if self.heartbeat_thread is not None:
+            self.heartbeat_thread.join()
+        self.cleanup()
+
+    def cleanup(self):
+        if self.socket_monitor is not None:
+            self.socket_monitor.stop()
+        if self.socket is not None:
+            self.socket.close()
+
 
     @abstractmethod
     def _run(self):

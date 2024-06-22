@@ -5,14 +5,12 @@ import sys
 import os
 import logging
 from enum import Enum
-from logging.handlers import TimedRotatingFileHandler
-
-
+from logging.handlers import TimedRotatingFileHandler, QueueHandler, QueueListener
+import queue
 
 class LogMode(Enum):
     UPDATE = "update"
     NEWLINE = "newline"
-
 
 class Debug:
     enabled = True
@@ -21,6 +19,8 @@ class Debug:
     last_message = LogMode.NEWLINE
     log_folder = None
     logger = None
+    log_queue = queue.Queue()
+    listener = None  # Add a class variable to hold the listener instance
 
     ANSI_CODES = {
         'red': "\033[31m",
@@ -43,13 +43,19 @@ class Debug:
         cls.logger = logging.getLogger('DebugLogger')
         cls.logger.setLevel(logging.DEBUG)
 
-        handler = TimedRotatingFileHandler(log_file, when='midnight', interval=1, backupCount=7)
+        # Use a standard FileHandler instead of TimedRotatingFileHandler
+        handler = logging.FileHandler(log_file)
         handler.setLevel(logging.DEBUG)
 
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
 
-        cls.logger.addHandler(handler)
+        queue_handler = QueueHandler(cls.log_queue)
+        cls.logger.addHandler(queue_handler)
+
+        # Start a QueueListener to handle logging in a separate thread
+        cls.listener = QueueListener(cls.log_queue, handler)
+        cls.listener.start()
 
     @classmethod
     def clean_old_logs(cls, log_folder):
@@ -79,9 +85,6 @@ class Debug:
             with cls.mutex:
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 for message in messages:
-                    if isinstance(message, Exception) and mode == LogMode.NEWLINE:
-                        message = f"{message}\n{traceback.format_exc()}"
-
                     log_message = f"[{timestamp}] {cls.prefix} {log_type}: {message}"
 
                     # Print to console with color formatting
@@ -106,13 +109,11 @@ class Debug:
                         elif log_type == "ERROR":
                             cls.logger.error(message)
 
+    @classmethod
+    def shutdown(cls):
+        if cls.listener:
+            cls.listener.stop()
 
-# Example usage
-if __name__ == "__main__":
-    Debug.configure_logger('logs')
-    Debug.info("This is an info message.")
-    Debug.warn("This is a warning message.")
-    Debug.error("This is an error message.")
 
 # import threading
 # import traceback

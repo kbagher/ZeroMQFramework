@@ -1,6 +1,8 @@
+import signal
+
 from ZeroMQFramework import *
 from ZeroMQFramework import ZeroMQHeartbeatConfig
-
+from ZeroMQFramework import Debug
 
 class ZeroMQMultiThreadedWorkers:
     def __init__(self, connection: ZeroMQConnection, num_workers: int = 1,

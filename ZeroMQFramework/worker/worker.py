@@ -32,11 +32,11 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.heartbeat_enabled = self.heartbeat_config is not None
 
         if self.heartbeat_enabled:
-            self.heartbeat_sender = ZeroMQHeartbeatSender(context= self.context,
+            self.heartbeat_sender = ZeroMQHeartbeatSender(context=self.context,
                                                           node_id=self.worker_id, node_type=ZeroMQNodeType.WORKER,
-                                                          config = self.heartbeat_config)
+                                                          config=self.heartbeat_config)
         #
-        self.poll_timeout = 1000 # milliseconds
+        self.poll_timeout = 1000  # milliseconds
 
         signal.signal(signal.SIGINT, self.request_shutdown)
         signal.signal(signal.SIGTERM, self.request_shutdown)
@@ -54,7 +54,6 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         Debug.info(f"Worker connected to {connection_string}")
         self.heartbeat_sender.start()
         self.process_messages()
-
 
     def process_messages(self):
         poller = zmq.Poller()
@@ -96,8 +95,9 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
 
     def cleanup(self, poller):
         Debug.info("Worker is shutting down, performing cleanup...")
-        if self.heartbeat_enabled > 0:
-            self.heartbeat_sender.stop()
+        if self.heartbeat_enabled:
+            Debug.info("Worker is calling stop heartbeat...")
+            self.heartbeat_sender.stop()  # Wait for the heartbeat thread to stop
         poller.unregister(self.socket)
         self.socket.close()
         self.context.term()

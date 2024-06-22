@@ -25,26 +25,36 @@ class ZeroMQSocketMonitor:
 
     def stop(self):
         self.running = False
-        if self.monitor_socket:
-            self.monitor_socket.close()
+        if self.monitor_thread is not None:
+            self.monitor_thread.join()  # Ensure the thread has finished
+        # self.cleanup()
 
     def monitor_events(self):
+        poller = zmq.Poller()
+        poller.register(self.monitor_socket, zmq.POLLIN)
+
         while self.running:
-            try:
-                event = self.monitor_socket.recv_multipart()
-                event_dict = zmq.utils.monitor.parse_monitor_message(event)
-                event_type = event_dict['event']
-                print(event_dict)
-                if event_type == zmq.EVENT_CONNECTED:
-                    self.connected = True
-                    Debug.info("Connected to the router")
-                elif event_type == zmq.EVENT_DISCONNECTED:
-                    self.connected = False
-                    Debug.info("Disconnected from the router")
-            except zmq.error.Again as e:
-                pass
-            except Exception as e:
-                Debug.error(f"Monitor exception:", e)
+            socks = dict(poller.poll(timeout=100))  # Poll with a timeout
+            if self.monitor_socket in socks:
+                try:
+                    event = self.monitor_socket.recv_multipart(flags=zmq.NOBLOCK)
+                    event_dict = zmq.utils.monitor.parse_monitor_message(event)
+                    event_type = event_dict['event']
+                    if event_type == zmq.EVENT_CONNECTED:
+                        self.connected = True
+                        Debug.info("Connected to the router")
+                    elif event_type == zmq.EVENT_DISCONNECTED:
+                        self.connected = False
+                        Debug.info("Disconnected from the router")
+                except zmq.error.Again as e:
+                    pass  # Handle non-blocking receive timeout
+                except Exception as e:
+                    Debug.error("Monitor exception:", e)
+        self.cleanup()
+
+    def cleanup(self):
+        if self.monitor_socket:
+            self.monitor_socket.close()
 
     def is_connected(self):
         return self.connected
