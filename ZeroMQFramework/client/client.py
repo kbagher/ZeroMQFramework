@@ -56,7 +56,7 @@ class ZeroMQClient:
             self.heartbeat.start()
             self.heartbeat_started = False
 
-        logger.info("Client connected to server")
+        logger.info(f'Client connected to node at {connection_string}')
 
     def reconnect(self):
         self.cleanup_socket()

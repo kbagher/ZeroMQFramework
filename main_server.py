@@ -5,6 +5,7 @@ import signal
 
 
 def handle_message(message: dict) -> Any:
+    print(message)
     return message
 
 

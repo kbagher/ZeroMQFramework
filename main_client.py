@@ -26,7 +26,8 @@ def main():
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
     heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
-    heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
+    # heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
+    heartbeat_config = None
 
     client = ZeroMQClient(port=5555, host='localhost', heartbeat_config=heartbeat_config, protocol=ZeroMQProtocol.TCP,
                           timeout=5000, retry_attempts=3,
@@ -47,13 +48,17 @@ def main():
                     batch_start_time = time.time()  # Record the start time for the batch
 
                 try:
-                    event_name = "mymessage"
+                    event_name = ZeroMQEvent.MESSAGE.value
                     event_data = {"content": f"Message {x} from client {client_id}"}
                     # event_data = {"delivery_tag":1,"event":"Starting new HTTP connection (1): overallsentiment.eu-west-1.aws.lucidya.production:80","event_name":"alert_data","filename":"connectionpool.py","func_name":"_new_conn","level":"debug","level_number":10,"lineno":244,"logger":"urllib3.connectionpool","message_metadata":"331abd3cd569ac7b85d1a9b4a05aa4bb8428a85c6303193ff298f7eb41733878","module":"connectionpool","parent_span_id":"8a9a4f584a247782","pathname":"/usr/local/lib/python3.11/site-packages/urllib3/connectionpool.py","process":1,"process_name":"MainProcess","span_id":"cefccc79b8a4ea1e","thread":139790866884288,"thread_name":"ThreadPoolExecutor-1_2","trace_id":"eb146e38420d13700ae69102fd244531"}
                     response = client.send_message(event_name, event_data)
-                    reply_content = response["event_data"][0]["event_data"]["content"]
+                    # print(response)
+                    # reply_content = response["event_data"][0]["event_data"]["content"]
+                    reply_content = response["event_data"]["event_data"]["content"]
+                    # print(reply_content)
                     received_id = reply_content.split()[-1]
                 except Exception as e:
+                    logger.error(e)
                     pass
 
                 if x % batch_size == 0:

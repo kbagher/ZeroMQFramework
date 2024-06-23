@@ -1,4 +1,5 @@
 from .helpers.config import *
+from .helpers.event import *
 from .worker.worker import *
 from .router.router import *
 from .client.client import *
