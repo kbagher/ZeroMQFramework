@@ -17,7 +17,7 @@ def format_time(seconds):
 
 def signal_handler(signal, frame):
     logger.warn("Main process received shutdown signal")
-    sys.exit(0)
+    sys.exit(1)
 
 
 def main():
@@ -26,11 +26,11 @@ def main():
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
     heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
-    # heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
-    heartbeat_config = None
+    heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
+    # heartbeat_config = None
+    connection = ZeroMQTCPConnection(port=5555)
 
-    client = ZeroMQClient(port=5555, host='localhost', heartbeat_config=heartbeat_config, protocol=ZeroMQProtocol.TCP,
-                          timeout=5000, retry_attempts=3,
+    client = ZeroMQClient(connection=connection, heartbeat_config=heartbeat_config, timeout=5000, retry_attempts=3,
                           retry_timeout=1000)
     batch_start_time = time.time()
 
@@ -83,7 +83,7 @@ def main():
             except ZeroMQConnectionError as e:
                 logger.error(f"ZeroMQConnectionError occurred: {e}, reconnecting client.")
                 client.cleanup()
-                client.connect()
+                # client.connect()
                 time.sleep(client.retry_timeout / 1000)
     except Exception as e:
         logger.error(f"An unexpected error occurred", e)

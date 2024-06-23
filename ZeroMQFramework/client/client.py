@@ -11,18 +11,16 @@ from ZeroMQFramework.helpers.node_type import ZeroMQNodeType
 
 
 class ZeroMQClient:
-    def __init__(self, port: int, host: str = 'localhost', protocol: ZeroMQProtocol = ZeroMQProtocol.TCP,
+    def __init__(self, connection: ZeroMQConnection,
                  heartbeat_config: ZeroMQHeartbeatConfig = None, timeout: int = 5000,
                  retry_attempts: int = 3, retry_timeout: int = 1000):
-        self.port = port
-        self.protocol = protocol
         self.timeout = timeout
         self.retry_attempts = retry_attempts
         self.retry_timeout = retry_timeout
         self.context = zmq.Context()
+        self.connection = connection
         self.socket = None
         self.connected = False
-        self.host = host
         self.poller = zmq.Poller()
         self.monitor = None
         self.shutdown = False
@@ -43,13 +41,13 @@ class ZeroMQClient:
         else:
             self.heartbeat = None
 
-
     def connect(self):
         self.socket = self.context.socket(zmq.REQ)
         self.socket.setsockopt(zmq.RCVTIMEO, self.timeout)
         self.socket.setsockopt(zmq.SNDTIMEO, self.timeout)
         self.socket.setsockopt(zmq.IDENTITY, self.node_id.encode('utf-8'))  # Set the worker ID
-        connection_string = f"{self.protocol.value}://{self.host}:{self.port}"
+
+        connection_string = self.connection.get_connection_string(bind=False)
         self.socket.connect(connection_string)
         self.connected = True
         if self.heartbeat_enabled and not self.heartbeat_started:
@@ -112,7 +110,6 @@ class ZeroMQClient:
             logger.info("Socket closed")
 
     def cleanup(self):
-        self.running = False
         logger.info("Cleaning up client...")
         if self.monitor:
             logger.info("Cleaning up monitor")
