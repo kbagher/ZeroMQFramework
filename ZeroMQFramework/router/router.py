@@ -4,7 +4,7 @@ from ZeroMQFramework.helpers.config import *
 from ZeroMQFramework.helpers.utils import *
 from ZeroMQFramework.router.routing_strategy import *
 from ZeroMQFramework.helpers.error import *
-from ZeroMQFramework.helpers.logger import logger
+from loguru import logger
 from ZeroMQFramework.helpers.node_type import ZeroMQNodeType
 from ZeroMQFramework.heartbeat.heartbeat_receiver import ZeroMQHeartbeatReceiver
 from ZeroMQFramework.heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
@@ -39,7 +39,7 @@ class ZeroMQRouter:
         signal.signal(signal.SIGTERM, self.request_shutdown)
 
     def request_shutdown(self, signum, frame):
-        logger.warn(f"Received signal {signum}, shutting down gracefully...")
+        logger.warning(f"Received signal {signum}, shutting down gracefully...")
         self.shutdown_requested = False
 
     def start(self):

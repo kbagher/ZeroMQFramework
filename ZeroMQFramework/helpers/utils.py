@@ -1,5 +1,10 @@
+import datetime
 import json
+import os
+import sys
 import time
+from loguru import logger
+from concurrent.futures import ThreadPoolExecutor
 
 
 def get_current_time():
@@ -45,3 +50,46 @@ def parse_message(message: list) -> dict:
         }
     except Exception as e:
         raise ValueError(f"Error parsing message: {message}", e)
+
+
+#####################
+##### Used for logger
+
+
+# Create a thread pool for logging
+log_executor = ThreadPoolExecutor(max_workers=1)
+
+
+def setup_logging(log_folder):
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+
+    # Create a timestamp for the log file name
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    log_file = os.path.join(log_folder, f'debug_{timestamp}.log')
+
+    logger.add(log_file, level="DEBUG", format="{time} - {level} - {message}")
+
+    # Remove default stderr logger to customize format
+    logger.remove(0)
+    logger.add(sys.stderr, format="<green>{time}</green> - <level>{level}</level> - <level>{message}</level>")
+
+    # Setup non-blocking logging using the thread pool
+    logger.configure(patcher=patch_logging)
+
+    # Optionally, if you want to keep old logs clean
+    cleanup_old_logs(log_folder)
+
+
+def patch_logging(record):
+    log_executor.submit(logger.complete, record)
+
+
+def cleanup_old_logs(log_folder):
+    now = datetime.datetime.now()
+    for filename in os.listdir(log_folder):
+        file_path = os.path.join(log_folder, filename)
+        if os.path.isfile(file_path):
+            file_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
+            if (now - file_time).days > 7:
+                os.remove(file_path)

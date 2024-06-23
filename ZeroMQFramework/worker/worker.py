@@ -10,7 +10,7 @@ from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 import signal
 import threading
 import uuid
-from ..helpers.logger import logger
+from loguru import logger
 
 
 class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
@@ -55,7 +55,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         signal.signal(signal.SIGTERM, self.request_shutdown)
 
     def request_shutdown(self, signum, frame):
-        logger.warn(f"Received signal {signum}, shutting down gracefully...")
+        logger.warning(f"Received signal {signum}, shutting down gracefully...")
         self.shutdown_requested = True
 
     def run(self):

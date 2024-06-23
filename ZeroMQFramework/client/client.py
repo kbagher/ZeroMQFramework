@@ -64,7 +64,7 @@ class ZeroMQClient:
                 self.connect()
                 return
             except zmq.ZMQError as e:
-                logger.warn(f"Reconnect attempt {attempts + 1}/{self.retry_attempts} failed: {e}")
+                logger.warning(f"Reconnect attempt {attempts + 1}/{self.retry_attempts} failed: {e}")
                 attempts += 1
                 time.sleep(self.retry_timeout / 1000)
         raise ZeroMQConnectionError("Unable to reconnect after several attempts")
@@ -81,7 +81,7 @@ class ZeroMQClient:
                 res = self.receive_message()
                 return res
             except zmq.Again as e:
-                logger.warn("No response received within the timeout period, retrying...")
+                logger.warning("No response received within the timeout period, retrying...")
                 attempts += 1
                 time.sleep(self.retry_timeout / 1000)
             except zmq.ZMQError as e:
@@ -98,7 +98,7 @@ class ZeroMQClient:
         return parse_message(reply)
 
     def request_shutdown(self, signum, frame):
-        logger.warn(f"Client Received signal {signum}, shutting down gracefully...")
+        logger.warning(f"Client Received signal {signum}, shutting down gracefully...")
         self.shutdown = True
 
     def cleanup_socket(self):

@@ -1,9 +1,7 @@
 from enum import Enum
 from typing import Optional
 from abc import ABC, abstractmethod
-from ..helpers.logger import logger
-
-
+from loguru import logger
 
 
 class ZeroMQProtocol(Enum):
@@ -27,7 +25,7 @@ class ZeroMQTCPConnection(ZeroMQConnection):
         if port is None:
             raise ValueError("Port must be specified for TCP protocol.")
         if host is None:
-            logger.warn("Host is not defined. Using default localhost")
+            logger.warning("Host is not defined. Using default localhost")
 
         self.port = port
         self.host = host

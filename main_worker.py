@@ -19,8 +19,7 @@ def signal_handler(signal, frame):
 
 
 if __name__ == "__main__":
-    logger.configure_logger('logs/worker_logs')
-
+    setup_logging('logs/worker_logs')
     # Use an IPC connection for the workers if they are running on the same machine as the router
     ipc_path = "/tmp/my_super_app.ipc"
     worker_connection = ZeroMQIPCConnection(ipc_path=ipc_path)

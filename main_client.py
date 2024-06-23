@@ -1,5 +1,7 @@
 import random
 import string
+import sys
+
 from ZeroMQFramework import *
 
 
@@ -16,12 +18,14 @@ def format_time(seconds):
 
 
 def signal_handler(signal, frame):
-    logger.warn("Main process received shutdown signal")
+    logger.warning("Main process received shutdown signal")
     sys.exit(1)
 
 
+
 def main():
-    logger.configure_logger('logs/client_logs')
+    # logger.configure_logger('logs/client_logs')
+    setup_logging('logs/client_logs')
     client_id = generate_short_udid()
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
@@ -41,7 +45,7 @@ def main():
         client.connect()
         x = 0
         overall_start_time = time.time()  # Record the overall start time
-        batch_size = 100
+        batch_size = 1000
         while x < 1000000 and (time.time() - overall_start_time) <= 10:
             try:
                 if x % batch_size == 0:
@@ -67,8 +71,7 @@ def main():
                     overall_time_formatted = format_time(overall_elapsed_time)
                     logger.info(
                         f"Messages Sent: {x}, Batch time: {batch_elapsed_time:.2f}"
-                        f"seconds, Overall time: {overall_time_formatted}",
-                        mode=LogMode.UPDATE)
+                        f"seconds, Overall time: {overall_time_formatted}")
                 # if received_id != client_id:
                 #     Debug.error(f"Error: Mismatched client ID in reply. Sent: {client_id}, Received: {received_id}")
                 # if int(reply_content.split()[1]) != x:
@@ -77,7 +80,7 @@ def main():
             except ZeroMQMalformedMessage:
                 logger.error(f"Error: Message malformed: {client_id}")
             except ZeroMQTimeoutError:
-                logger.warn("No response received within the timeout period, retrying...")
+                logger.warning("No response received within the timeout period, retrying...")
                 # Implement retry logic or other actions
                 time.sleep(client.retry_timeout / 1000)  # Optional: wait before retrying
             except ZeroMQConnectionError as e:
@@ -91,7 +94,6 @@ def main():
         client.cleanup()
 
     logger.info(f"Done Sending:")
-
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,7 @@ import uuid
 import zmq.utils.monitor
 import zmq
 from threading import Thread
-from ..helpers.logger import logger
+from loguru import logger
 
 
 class ZeroMQSocketMonitor:

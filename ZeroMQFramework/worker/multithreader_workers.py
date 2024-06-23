@@ -30,7 +30,7 @@ class ZeroMQMultiThreadedWorkers:
         logger.info(f"{self.num_workers} workers started.")
 
     def request_shutdown(self, signum, frame):
-        logger.warn("Received shutdown signal, stopping all workers...")
+        logger.warning("Received shutdown signal, stopping all workers...")
         self.shutdown_requested = True
         for worker in self.workers:
             worker.request_shutdown(signum, frame)

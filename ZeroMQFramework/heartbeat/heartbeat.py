@@ -7,7 +7,7 @@ from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 from ..helpers.node_type import ZeroMQNodeType
 from ..common.socket_monitor import ZeroMQSocketMonitor
 import zmq
-from ..helpers.logger import logger
+from loguru import logger
 
 
 class ZeroMQHeartbeatType(Enum):

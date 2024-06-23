@@ -1,5 +1,5 @@
 import threading
-from ..helpers.logger import logger
+from loguru import logger
 from collections import defaultdict
 
 import zmq

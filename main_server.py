@@ -10,7 +10,8 @@ def handle_message(message: dict) -> Any:
 
 
 def main():
-    logger.configure_logger('logs/server_logs')
+    setup_logging('logs/server_logs')
+
 
     # Define the connection
     connection = ZeroMQTCPConnection(port=5555)

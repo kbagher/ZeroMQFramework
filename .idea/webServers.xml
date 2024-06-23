@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="3f155c45-c67a-42dd-b57f-2bd5d5272eea" name="Digitalocean 1">
+        <fileTransfer rootFolder="/root" accessType="SFTP" host="170.64.145.234" port="22" sshConfigId="61785fe0-fea3-44af-b2cc-9e17853a9c2c" sshConfig="Digitalocean 1" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="38e29f22-8a83-4699-a31f-4284bfa0d4f9" name="Digitalocean 2">
+        <fileTransfer rootFolder="/root" accessType="SFTP" host="209.38.24.99" port="22" sshConfigId="a4cc1ba8-8af6-49c9-886e-d6477c2462fc" sshConfig="Digitalocean 2" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

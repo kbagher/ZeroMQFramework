@@ -6,7 +6,7 @@ from ..helpers.node_type import ZeroMQNodeType
 from ..helpers.utils import create_message
 from ..helpers.event import ZeroMQEvent
 from ..common.socket_monitor import ZeroMQSocketMonitor
-from ..helpers.logger import logger
+from loguru import logger
 
 
 class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
@@ -28,7 +28,7 @@ class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
             try:
                 time.sleep(self.config.interval)
                 if not self.socket_monitor.is_connected():
-                    logger.warn("Heartbeat cannot reach node, discarding heartbeat...")
+                    logger.warning("Heartbeat cannot reach node, discarding heartbeat...")
                     continue
 
                 message = create_message(ZeroMQEvent.HEARTBEAT.value, {"node_id": self.node_id},

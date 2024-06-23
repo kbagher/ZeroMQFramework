@@ -4,7 +4,7 @@ from .worker.worker import *
 from .router.router import *
 from .client.client import *
 from .worker.multithreader_workers import *
-from .helpers.logger import *
+from loguru import *
 from .router.routing_strategy import *
-from .helpers.logger import logger
+from loguru import logger
 from .helpers.error import *
