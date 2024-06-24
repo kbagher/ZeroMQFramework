@@ -5,7 +5,7 @@ import signal
 
 
 def handle_message(message: dict) -> Any:
-    print(message)
+    # print(message)
     return message
 
 
@@ -19,7 +19,8 @@ def main():
     # connection = ZeroMQIPCConnection(ipc_path=ipc_path)
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
-    heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    # heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    heartbeat_conn = ZeroMQTCPConnection(port=5556)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1)
 
 

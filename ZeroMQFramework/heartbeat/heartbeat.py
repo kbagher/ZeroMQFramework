@@ -41,25 +41,27 @@ class ZeroMQHeartbeat(ABC):
         while self.running:
             try:
                 connection_string = self.config.connection.get_connection_string(bind)
-                # Always start the monitor before connecting with the socket.
-                # This ensures that you capture the initial events
-                # I use monitor on sender only as the senders will send the heartbeat and will know if the remote node is up or down
+                logger.info(f'Heartbeat: Connecting to {connection_string}')
+                # Always start the monitor before connecting with the socket. This ensures that you capture the
+                # initial events I use monitor on sender only as the senders will send the heartbeat and will know if
+                # the remote node is up or down
                 if self.get_heartbeat_type() is ZeroMQHeartbeatType.SENDER:
+                    logger.info(f'Heartbeat: Starting socket monitor')
                     self.socket_monitor.start()  # Start the monitor after connecting
                 if bind:
                     self.socket.bind(connection_string)
-                    logger.info(f'Heartbeat reciever bound successfully. {connection_string}')
+                    logger.info(f'Heartbeat: Heartbeat receiver bound successfully. {connection_string}')
                 else:
                     self.socket.connect(connection_string)
-                    logger.info(f'Heartbeat sender connected successfully. {connection_string}')
+                    logger.info(f'Heartbeat: Heartbeat sender connected successfully. {connection_string}')
                 break
             except zmq.ZMQError as e:
-                logger.error(f"ZMQ Error occurred during connect: ", e)
+                logger.error(f"Heartbeat: ZMQ Error occurred during connect: ", e)
                 time.sleep(self.config.interval)
                 self.socket.close()
                 self.socket = self.context.socket(self.get_socket_type())
             except Exception as e:
-                logger.error(f"Unknown exception occurred during connect: ", e)
+                logger.error(f"Heartbeat: Unknown exception occurred during connect: ", e)
                 time.sleep(self.config.interval)
                 self.socket.close()
                 self.socket = self.context.socket(self.get_socket_type())

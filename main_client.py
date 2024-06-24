@@ -29,7 +29,8 @@ def main():
     client_id = generate_short_udid()
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
-    heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    # heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    heartbeat_conn = ZeroMQTCPConnection(port=5556)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
     # heartbeat_config = None
     connection = ZeroMQTCPConnection(port=5555)
@@ -45,8 +46,8 @@ def main():
         client.connect()
         x = 0
         overall_start_time = time.time()  # Record the overall start time
-        batch_size = 1000
-        while x < 1000000 and (time.time() - overall_start_time) <= 10:
+        batch_size = 10
+        while x < 1000000 and (time.time() - overall_start_time) <= 10000:
             try:
                 if x % batch_size == 0:
                     batch_start_time = time.time()  # Record the start time for the batch
@@ -77,6 +78,7 @@ def main():
                 # if int(reply_content.split()[1]) != x:
                 #     Debug.error(f"Error: Mismatched value. Sent: {x}, Received: {reply_content.split()[1]}")
                 x += 1
+                time.sleep(0.1)
             except ZeroMQMalformedMessage:
                 logger.error(f"Error: Message malformed: {client_id}")
             except ZeroMQTimeoutError:

@@ -3,8 +3,29 @@ import json
 import os
 import sys
 import time
+import uuid
+
 from loguru import logger
 from concurrent.futures import ThreadPoolExecutor
+
+
+def get_uuid_hex(length=32):
+    """
+    Generate a hexadecimal representation of a random UUID.
+
+    :param length: The length of the hexadecimal representation. Default is 32.
+    :return: A string representing the UUID in hexadecimal format.
+    """
+    return uuid.uuid4().hex[:length]
+
+
+def get_uuid_str():
+    """
+    Generate a 32 character string representation of a random UUID
+
+    :return: A string representation of a UUID.
+    """
+    return str(uuid.uuid4())
 
 
 def get_current_time():
@@ -54,7 +75,6 @@ def parse_message(message: list) -> dict:
 
 #####################
 ##### Used for logger
-
 
 # Create a thread pool for logging
 log_executor = ThreadPoolExecutor(max_workers=1)
