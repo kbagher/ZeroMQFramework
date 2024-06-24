@@ -26,14 +26,20 @@ def signal_handler(signal, frame):
 def main():
     # logger.configure_logger('logs/client_logs')
     setup_logging('logs/client_logs')
+
+    server_config = load_config('config.ini', 'Client')
+    server_host = server_config['server_host']
+    server_port = server_config.getint('server_port')
+    server_heartbeat_port = server_config.getint('server_heartbeat_port')
+
     client_id = generate_short_udid()
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
     # heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
-    heartbeat_conn = ZeroMQTCPConnection(port=5556)
+    heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_host)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
     # heartbeat_config = None
-    connection = ZeroMQTCPConnection(port=5555)
+    connection = ZeroMQTCPConnection(port=server_port, host=server_host)
 
     client = ZeroMQClient(connection=connection, heartbeat_config=heartbeat_config, timeout=5000, retry_attempts=3,
                           retry_timeout=1000)

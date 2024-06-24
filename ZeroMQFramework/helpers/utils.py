@@ -1,3 +1,4 @@
+import configparser
 import datetime
 import json
 import os
@@ -71,6 +72,14 @@ def parse_message(message: list) -> dict:
         }
     except Exception as e:
         raise ValueError(f"Error parsing message: {message}", e)
+
+
+def load_config(config_file, section):
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    if section not in config:
+        raise ValueError(f"Section {section} not found in the configuration file.")
+    return config[section]
 
 
 #####################
