@@ -32,6 +32,9 @@ class ZeroMQHeartbeat(ABC):
     def get_heartbeat_type(self):
         raise NotImplementedError("Subclasses must implement get_heartbeat_type method")
 
+    def setup_socket_monitor(self):
+        pass
+
     def start(self):
         # Always use demon to avoid blocking the main app from exiting
         self.heartbeat_thread = threading.Thread(target=self._run, daemon=True)
@@ -58,13 +61,22 @@ class ZeroMQHeartbeat(ABC):
             except zmq.ZMQError as e:
                 logger.error(f"Heartbeat: ZMQ Error occurred during connect: ", e)
                 time.sleep(self.config.interval)
-                self.socket.close()
-                self.socket = self.context.socket(self.get_socket_type())
+                self._reinitialize_socket()
+                # self.socket.close()
+                # self.socket = self.context.socket(self.get_socket_type())
             except Exception as e:
                 logger.error(f"Heartbeat: Unknown exception occurred during connect: ", e)
                 time.sleep(self.config.interval)
-                self.socket.close()
-                self.socket = self.context.socket(self.get_socket_type())
+                self._reinitialize_socket()
+                # self.socket.close()
+                # self.socket = self.context.socket(self.get_socket_type())
+
+    def _reinitialize_socket(self):
+        if self.socket:
+            self.socket.close()
+        new_socket = self.context.socket(self.get_socket_type())
+        self.socket = new_socket
+        self.socket_monitor.reset_socket(new_socket)
 
     def stop(self):
         logger.info("Stopping heartbeat")
