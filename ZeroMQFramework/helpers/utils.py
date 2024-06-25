@@ -100,8 +100,8 @@ def setup_logging(log_folder):
     logger.add(log_file, level="DEBUG", format="{time} - {level} - {message}")
 
     # Remove default stderr logger to customize format
-    logger.remove(0)
-    logger.add(sys.stderr, format="<green>{time}</green> - <level>{level}</level> - <level>{message}</level>")
+    # logger.remove(0)
+    # logger.add(sys.stderr, format="<green>{time}</green> - <level>{level}</level> - <level>{message}</level>")
 
     # Setup non-blocking logging using the thread pool
     logger.configure(patcher=patch_logging)

@@ -22,7 +22,6 @@ def signal_handler(signal, frame):
     sys.exit(1)
 
 
-
 def main():
     # logger.configure_logger('logs/client_logs')
     setup_logging('logs/client_logs')
@@ -102,6 +101,7 @@ def main():
         client.cleanup()
 
     logger.info(f"Done Sending:")
+
 
 if __name__ == "__main__":
     main()

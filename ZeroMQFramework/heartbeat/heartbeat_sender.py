@@ -19,14 +19,16 @@ class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
         return ZeroMQHeartbeatType.SENDER
 
     def _run(self):
+        logger.info("Heartbeat sender: _run")
         self.connect()
-        if self.socket_monitor.is_connected():
-            logger.info("Heartbeat sender connected to endpoint node. Sending...")
+
+        if self.is_connected():
+            logger.info("Heartbeat sender: connected to endpoint node. Sending...")
         while self.running:
             try:
                 time.sleep(self.config.interval)
-                if not self.socket_monitor.is_connected():
-                    logger.warning("Heartbeat cannot reach node, discarding heartbeat...")
+                if not self.is_connected():
+                    logger.warning("Heartbeat sender: Heartbeat cannot reach node, discarding heartbeat...")
                     continue
 
                 message = create_message(ZeroMQEvent.HEARTBEAT.value, {"node_id": self.node_id},
@@ -35,8 +37,8 @@ class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
                 self.socket.send_multipart(message)
                 # print(f"Heartbeat sent: {message}")
             except zmq.ZMQError as e:
-                logger.error(f"ZMQ Error occurred: {e}")
+                logger.error(f"Heartbeat sender: ZMQ Error occurred: {e}")
                 self.connect()
             except Exception as e:
-                logger.error(f"Unknown exception occurred: {e}")
+                logger.error(f"Heartbeat sender: Unknown exception occurred: {e}")
                 self.connect()

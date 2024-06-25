@@ -16,6 +16,7 @@ class ZeroMQSocketMonitor:
         self.monitor_socket = None
         self.running_event = Event()
         self.reset_socket_event = Event()
+        self.stop_warnings = Event()
         self.connected = False
         self.monitor_thread = None
         self.lock = Lock()
@@ -31,7 +32,8 @@ class ZeroMQSocketMonitor:
 
     def start(self):
         try:
-            if self.monitor_socket is None:
+            if self.monitor_socket is None:  # avoid creating multiple threads
+                logger.info("Socket monitor: Starting monitor thread")
                 self.running_event.set()
                 self._initialize_monitor()
                 self.monitor_thread = Thread(target=self.monitor_events, daemon=True)
@@ -45,10 +47,12 @@ class ZeroMQSocketMonitor:
         self.cleanup()
 
     def reset_socket(self, new_socket):
+        logger.info("Resetting socket monitor")
         self.reset_socket_event.set()
         self.socket = new_socket
         self._initialize_monitor()
         self.reset_socket_event.clear()
+        self.stop_warnings.clear()
 
     def _initialize_monitor(self):
         tmp_id = uuid.uuid4().hex[:8]
@@ -72,6 +76,7 @@ class ZeroMQSocketMonitor:
                         if event_type == zmq.EVENT_CONNECTED:
                             self.connected = True
                             logger.info("Socket monitor: Connected")
+                            self.stop_warnings.clear()
                             if self.on_socket_connect_callback:
                                 self.on_socket_connect_callback()
                         elif event_type == zmq.EVENT_DISCONNECTED:
@@ -81,8 +86,10 @@ class ZeroMQSocketMonitor:
                                 self.on_socket_disconnect_callback()
                         elif event_type == zmq.EVENT_CLOSED:
                             self.connected = False
-                            logger.warning("Socket monitor: Closed. Make sure you call reset_socket() after "
-                                           "reconnecting (or reinitialising) the main socket that is being monitored")
+                            if not self.stop_warnings.is_set():
+                                logger.warning("Socket monitor: Closed. If the monitored socket is reinitialised, "
+                                               "make sure you call reset_socket() to set the new socket object")
+                                self.stop_warnings.set()  # to avoid repeated printing. Remove if not needed
                             if self.on_socket_closed_callback:
                                 self.on_socket_closed_callback()
                 except zmq.error.Again:
