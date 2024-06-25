@@ -22,17 +22,23 @@ def signal_handler(signal, frame):
     sys.exit(1)
 
 
-
 def main():
     # logger.configure_logger('logs/client_logs')
     setup_logging('logs/client_logs')
+
+    server_config = load_config('config.ini', 'Client')
+    server_host = server_config['server_host']
+    server_port = server_config.getint('server_port')
+    server_heartbeat_port = server_config.getint('server_heartbeat_port')
+
     client_id = generate_short_udid()
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
-    heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    # heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_host)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
     # heartbeat_config = None
-    connection = ZeroMQTCPConnection(port=5555)
+    connection = ZeroMQTCPConnection(port=server_port, host=server_host)
 
     client = ZeroMQClient(connection=connection, heartbeat_config=heartbeat_config, timeout=5000, retry_attempts=3,
                           retry_timeout=1000)
@@ -45,8 +51,8 @@ def main():
         client.connect()
         x = 0
         overall_start_time = time.time()  # Record the overall start time
-        batch_size = 1000
-        while x < 1000000 and (time.time() - overall_start_time) <= 10:
+        batch_size = 10
+        while x < 1000000 and (time.time() - overall_start_time) <= 10000:
             try:
                 if x % batch_size == 0:
                     batch_start_time = time.time()  # Record the start time for the batch
@@ -77,6 +83,7 @@ def main():
                 # if int(reply_content.split()[1]) != x:
                 #     Debug.error(f"Error: Mismatched value. Sent: {x}, Received: {reply_content.split()[1]}")
                 x += 1
+                time.sleep(0.1)
             except ZeroMQMalformedMessage:
                 logger.error(f"Error: Message malformed: {client_id}")
             except ZeroMQTimeoutError:
@@ -94,6 +101,7 @@ def main():
         client.cleanup()
 
     logger.info(f"Done Sending:")
+
 
 if __name__ == "__main__":
     main()

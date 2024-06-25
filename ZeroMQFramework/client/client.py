@@ -51,10 +51,11 @@ class ZeroMQClient:
         self.socket.connect(connection_string)
         self.connected = True
         if self.heartbeat_enabled and not self.heartbeat_started:
+            logger.info(f'Client: Staring heartbeat')
             self.heartbeat.start()
-            self.heartbeat_started = False
+            self.heartbeat_started = True
 
-        logger.info(f'Client connected to node at {connection_string}')
+        logger.info(f'Client: Client connected to node at {connection_string}')
 
     def reconnect(self):
         self.cleanup_socket()
@@ -64,10 +65,10 @@ class ZeroMQClient:
                 self.connect()
                 return
             except zmq.ZMQError as e:
-                logger.warning(f"Reconnect attempt {attempts + 1}/{self.retry_attempts} failed: {e}")
+                logger.warning(f"Client: Reconnect attempt {attempts + 1}/{self.retry_attempts} failed: {e}")
                 attempts += 1
                 time.sleep(self.retry_timeout / 1000)
-        raise ZeroMQConnectionError("Unable to reconnect after several attempts")
+        raise ZeroMQConnectionError("Client: Unable to reconnect after several attempts")
 
     def send_message(self, event_name: str, event_data: dict):
         if not self.connected:
@@ -81,45 +82,45 @@ class ZeroMQClient:
                 res = self.receive_message()
                 return res
             except zmq.Again as e:
-                logger.warning("No response received within the timeout period, retrying...")
+                logger.warning("Client: No response received within the timeout period, retrying...")
                 attempts += 1
                 time.sleep(self.retry_timeout / 1000)
             except zmq.ZMQError as e:
                 if e.errno == zmq.EFSM or e.errno == zmq.EAGAIN:
-                    logger.error("Socket is in an invalid state, reconnecting socket.")
+                    logger.error("Client: Socket is in an invalid state, reconnecting socket.")
                     self.reconnect()
                 else:
-                    logger.error(f"ZMQError occurred: {e}, reconnecting socket.")
+                    logger.error(f"Client: ZMQError occurred: {e}, reconnecting socket.")
                     self.reconnect()
-        raise ZeroMQTimeoutError("Unable to send message after several attempts")
+        raise ZeroMQTimeoutError("Client: Unable to send message after several attempts")
 
     def receive_message(self):
         reply = self.socket.recv_multipart()
         return parse_message(reply)
 
     def request_shutdown(self, signum, frame):
-        logger.warning(f"Client Received signal {signum}, shutting down gracefully...")
+        logger.warning(f"Client: Client Received signal {signum}, shutting down gracefully...")
         self.shutdown = True
 
     def cleanup_socket(self):
-        logger.info("Cleaning up socket")
+        logger.info("Client: Cleaning up socket")
         if self.socket:
-            logger.info("Closing socket")
+            logger.info("Client: Closing socket")
             self.socket.close()
             self.connected = False
-            logger.info("Socket closed")
+            logger.info("Client: Socket closed")
 
     def cleanup(self):
-        logger.info("Cleaning up client...")
+        logger.info("Client: Cleaning up client...")
         if self.monitor:
-            logger.info("Cleaning up monitor")
+            logger.info("Client: Cleaning up monitor")
             self.monitor.stop()
-            logger.info("Monitor Cleaned")
+            logger.info("Client: Monitor Cleaned")
         if self.heartbeat_enabled:
-            logger.info("Client is calling stop heartbeat...")
+            logger.info("Client: Client is calling stop heartbeat...")
             self.heartbeat.stop()  # Wait for the heartbeat thread to stop
         self.cleanup_socket()
-        logger.info("Socket cleaned up")
-        logger.info("Terminating context")
+        logger.info("Client: Socket cleaned up")
+        logger.info("Client: Terminating context")
         self.context.term()
-        logger.info("Cleaned up ZeroMQ sockets and context.")
+        logger.info("Client: Cleaned up ZeroMQ sockets and context.")

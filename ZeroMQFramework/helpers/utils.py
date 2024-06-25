@@ -1,10 +1,32 @@
+import configparser
 import datetime
 import json
 import os
 import sys
 import time
+import uuid
+
 from loguru import logger
 from concurrent.futures import ThreadPoolExecutor
+
+
+def get_uuid_hex(length=32):
+    """
+    Generate a hexadecimal representation of a random UUID.
+
+    :param length: The length of the hexadecimal representation. Default is 32.
+    :return: A string representing the UUID in hexadecimal format.
+    """
+    return uuid.uuid4().hex[:length]
+
+
+def get_uuid_str():
+    """
+    Generate a 32 character string representation of a random UUID
+
+    :return: A string representation of a UUID.
+    """
+    return str(uuid.uuid4())
 
 
 def get_current_time():
@@ -52,9 +74,16 @@ def parse_message(message: list) -> dict:
         raise ValueError(f"Error parsing message: {message}", e)
 
 
+def load_config(config_file, section):
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    if section not in config:
+        raise ValueError(f"Section {section} not found in the configuration file.")
+    return config[section]
+
+
 #####################
 ##### Used for logger
-
 
 # Create a thread pool for logging
 log_executor = ThreadPoolExecutor(max_workers=1)
@@ -71,8 +100,8 @@ def setup_logging(log_folder):
     logger.add(log_file, level="DEBUG", format="{time} - {level} - {message}")
 
     # Remove default stderr logger to customize format
-    logger.remove(0)
-    logger.add(sys.stderr, format="<green>{time}</green> - <level>{level}</level> - <level>{message}</level>")
+    # logger.remove(0)
+    # logger.add(sys.stderr, format="<green>{time}</green> - <level>{level}</level> - <level>{message}</level>")
 
     # Setup non-blocking logging using the thread pool
     logger.configure(patcher=patch_logging)
