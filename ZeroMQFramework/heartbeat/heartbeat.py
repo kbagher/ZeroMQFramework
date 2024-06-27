@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 
 from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
-from ..helpers.node_type import ZeroMQNodeType
+from ZeroMQFramework.common.node_type import ZeroMQNodeType
 from ..common.socket_monitor import ZeroMQSocketMonitor
 import zmq
 from loguru import logger

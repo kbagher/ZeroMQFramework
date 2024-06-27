@@ -54,6 +54,13 @@ def create_message(event_name: str, event_data: dict, include_empty_frame=False)
 
 
 def parse_message(message: list) -> dict:
+    """
+    Parse a message and return a dictionary containing the event_name and event_data.
+
+    :param message: A list representing the message to parse.
+    :return: A dictionary with the keys "event_name" and "event_data".
+    :raises ValueError: If the message is malformed or cannot be parsed.
+    """
     if len(message) < 2:
         raise ValueError(f"Malformed message: {message}")
     try:
@@ -75,6 +82,14 @@ def parse_message(message: list) -> dict:
 
 
 def load_config(config_file, section):
+    """
+    Load the specified section of a configuration file.
+
+    :param config_file: The path to the configuration file.
+    :param section: The section name in the configuration file to load.
+    :return: The specified section of the configuration file.
+    :raises ValueError: If the specified section is not found in the configuration file.
+    """
     config = configparser.ConfigParser()
     config.read(config_file)
     if section not in config:
@@ -90,6 +105,12 @@ log_executor = ThreadPoolExecutor(max_workers=1)
 
 
 def setup_logging(log_folder):
+    """
+    :param log_folder: The folder to store the log files.
+    :return: None
+
+    This method sets up logging for the application. It creates the log folder if it does not already exist, creates a timestamp for the log file name, sets the log file path, adds the log file to the logger, removes the default stderr logger, configures non-blocking logging using a thread pool, and optionally cleans up old log files in the log folder.
+    """
     if not os.path.exists(log_folder):
         os.makedirs(log_folder)
 
@@ -97,11 +118,13 @@ def setup_logging(log_folder):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     log_file = os.path.join(log_folder, f'debug_{timestamp}.log')
 
-    logger.add(log_file, level="DEBUG", format="{time} - {level} - {message}")
+    logger.add(log_file, level="DEBUG", format="{time} - {level} - {name}:{line} - {message}")
 
-    # Remove default stderr logger to customize format
-    # logger.remove(0)
-    # logger.add(sys.stderr, format="<green>{time}</green> - <level>{level}</level> - <level>{message}</level>")
+    # Remove the default stderr logger
+    logger.remove(0)
+
+    # Add a logger for the console with a simpler format
+    logger.add(sys.stderr, level="INFO", format="<green>{time}</green> - <level>{message}</level>")
 
     # Setup non-blocking logging using the thread pool
     logger.configure(patcher=patch_logging)

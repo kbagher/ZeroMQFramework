@@ -12,10 +12,15 @@ def handle_message(message: dict) -> Any:
 def main():
     setup_logging('logs/server_logs')
 
-    server_config = load_config('config.ini', 'Server')
-    server_host = server_config['host']
-    server_port = server_config.getint('server_port')
-    server_heartbeat_port = server_config.getint('server_heartbeat_port')
+    # server_config = load_config('config.ini', 'Server')
+    # server_host = server_config['host']
+    # server_port = server_config.getint('server_port')
+    # server_heartbeat_port = server_config.getint('server_heartbeat_port')
+
+    # server_config = load_config('config.ini', 'Server')
+    server_host = 'localhost'
+    server_port = 5556
+    server_heartbeat_port = 5555
 
     # Define the connection
     connection = ZeroMQTCPConnection(port=server_port, host=server_host)
@@ -26,7 +31,6 @@ def main():
     # heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
     heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_host)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1)
-
 
     # Create the worker in REP mode
     worker = ZeroMQWorker(connection=connection, handle_message=handle_message, heartbeat_config=heartbeat_config,

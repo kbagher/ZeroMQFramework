@@ -4,6 +4,7 @@ import zmq
 from threading import Thread, Event, Lock
 from loguru import logger
 import atexit
+from ..helpers.utils import *
 
 
 class ZeroMQSocketMonitor:
@@ -31,6 +32,11 @@ class ZeroMQSocketMonitor:
             ZeroMQSocketMonitor._cleanup_registered = True
 
     def start(self):
+        """
+        Start the monitor thread.
+
+        :return: None
+        """
         try:
             if self.monitor_socket is None:  # avoid creating multiple threads
                 logger.info("Socket monitor: Starting monitor thread")
@@ -43,10 +49,22 @@ class ZeroMQSocketMonitor:
             self.cleanup()  # Ensure cleanup if starting the thread fails
 
     def stop(self):
+        """
+        Stops the monitor and performs necessary cleanup.
+
+        :return: None.
+        """
         self.running_event.clear()
         self.cleanup()
 
     def reset_socket(self, new_socket):
+        """
+        Reset the socket that is being monitored.
+        This is to be used of the socket that is being monitored has been reinitialised
+
+        :param new_socket: The new socket object to be used for monitoring.
+        :return: None
+        """
         logger.info("Resetting socket monitor")
         self.reset_socket_event.set()
         self.socket = new_socket
@@ -55,7 +73,13 @@ class ZeroMQSocketMonitor:
         self.stop_warnings.clear()
 
     def _initialize_monitor(self):
-        tmp_id = uuid.uuid4().hex[:8]
+        """
+        Initializes the monitor for the socket.
+
+        :return:
+            This method does not return anything.
+        """
+        tmp_id = get_uuid_hex(8)
         self.socket.monitor(f"inproc://{tmp_id}.sock", zmq.EVENT_ALL)
         self.monitor_socket = self.context.socket(zmq.PAIR)
         self.monitor_socket.connect(f"inproc://{tmp_id}.sock")

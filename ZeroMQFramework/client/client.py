@@ -1,13 +1,11 @@
-import uuid
-
 import zmq
 
-from ZeroMQFramework.helpers.config import *
+from ZeroMQFramework.common.connection_protocol import *
 from ZeroMQFramework.helpers.utils import *
 from ZeroMQFramework.helpers.error import *
 from ZeroMQFramework.heartbeat.heartbeat_sender import ZeroMQHeartbeatSender
 from ZeroMQFramework.heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
-from ZeroMQFramework.helpers.node_type import ZeroMQNodeType
+from ZeroMQFramework.common.node_type import ZeroMQNodeType
 
 
 class ZeroMQClient:
@@ -27,7 +25,7 @@ class ZeroMQClient:
         self.node_type = ZeroMQNodeType.CLIENT
         self.heartbeat_started = False
         # Random ID (not used in server but won't make any difference)
-        self.node_id = uuid.uuid4().__str__()
+        self.node_id = get_uuid_hex()
 
         # Heartbeat
         self.heartbeat_config = heartbeat_config

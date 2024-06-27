@@ -26,10 +26,16 @@ def main():
     # logger.configure_logger('logs/client_logs')
     setup_logging('logs/client_logs')
 
-    server_config = load_config('config.ini', 'Client')
-    server_host = server_config['server_host']
-    server_port = server_config.getint('server_port')
-    server_heartbeat_port = server_config.getint('server_heartbeat_port')
+    # server_config = load_config('config.ini', 'Client')
+    # server_host = server_config['server_host']
+    # server_port = server_config.getint('server_port')
+    # server_heartbeat_port = server_config.getint('server_heartbeat_port')
+
+    # server_config = load_config('config.ini', 'Client')
+    server_host = 'localhost'
+    server_port = 5556
+    server_heartbeat_port = 5556
+
 
     client_id = generate_short_udid()
 
@@ -83,7 +89,7 @@ def main():
                 # if int(reply_content.split()[1]) != x:
                 #     Debug.error(f"Error: Mismatched value. Sent: {x}, Received: {reply_content.split()[1]}")
                 x += 1
-                time.sleep(0.1)
+                # time.sleep(0.1)
             except ZeroMQMalformedMessage:
                 logger.error(f"Error: Message malformed: {client_id}")
             except ZeroMQTimeoutError:

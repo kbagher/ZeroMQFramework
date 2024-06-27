@@ -1,13 +1,12 @@
 import threading
-from loguru import logger
 from collections import defaultdict
 
 import zmq
 
 from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 from ..heartbeat.heartbeat import ZeroMQHeartbeat, ZeroMQHeartbeatType
-from ..helpers.node_type import ZeroMQNodeType
-from ..helpers.event import ZeroMQEvent
+from ZeroMQFramework.common.node_type import ZeroMQNodeType
+from ZeroMQFramework.common.event import ZeroMQEvent
 from ..helpers.utils import *
 
 

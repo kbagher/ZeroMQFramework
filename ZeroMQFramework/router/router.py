@@ -1,11 +1,9 @@
-import uuid
-
-from ZeroMQFramework.helpers.config import *
+from ZeroMQFramework.common.connection_protocol import *
 from ZeroMQFramework.helpers.utils import *
 from ZeroMQFramework.router.routing_strategy import *
 from ZeroMQFramework.helpers.error import *
 from loguru import logger
-from ZeroMQFramework.helpers.node_type import ZeroMQNodeType
+from ZeroMQFramework.common.node_type import ZeroMQNodeType
 from ZeroMQFramework.heartbeat.heartbeat_receiver import ZeroMQHeartbeatReceiver
 from ZeroMQFramework.heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 import zmq
@@ -26,7 +24,7 @@ class ZeroMQRouter:
         self.strategy = strategy
         self.heartbeat_enabled = heartbeat_config is not None
 
-        self.router_id = uuid.uuid4().__str__()
+        self.router_id = get_uuid_hex()
 
         if self.heartbeat_enabled:
             self.heartbeat_handler = ZeroMQHeartbeatReceiver(context=self.context, node_id=self.router_id,

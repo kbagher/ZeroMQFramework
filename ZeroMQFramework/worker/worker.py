@@ -1,15 +1,15 @@
 from typing import Callable, Any
 from ..common.processing_base import ZeroMQProcessingBase
-from ..helpers.config import *
+from ZeroMQFramework.common.connection_protocol import *
 import zmq
 from ..helpers.utils import create_message, parse_message
-from ..helpers.node_type import ZeroMQNodeType
+from ZeroMQFramework.common.node_type import ZeroMQNodeType
 from ..heartbeat.heartbeat_sender import ZeroMQHeartbeatSender
 from ..heartbeat.heartbeat_receiver import ZeroMQHeartbeatReceiver
 from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 import signal
 import threading
-import uuid
+from ..helpers.utils import *
 from loguru import logger
 
 
@@ -28,7 +28,7 @@ class ZeroMQWorker(ZeroMQProcessingBase, threading.Thread):
         self.socket = self.context.socket(zmq.DEALER if self.node_type == ZeroMQNodeType.WORKER else zmq.REP)
 
         # Random ID (not used in server but won't make any difference)
-        self.worker_id = uuid.uuid4().__str__()
+        self.worker_id = get_uuid_hex()
         self.socket.setsockopt(zmq.IDENTITY, self.worker_id.encode('utf-8'))  # Set the worker ID
 
         self.daemon = True  # True = Makes the thread a daemon thread
