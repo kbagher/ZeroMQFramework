@@ -16,9 +16,11 @@ class ZeroMQHeartbeatType(Enum):
 
 
 class ZeroMQHeartbeat(ABC):
-    def __init__(self, context: zmq.Context, node_id: str, node_type: ZeroMQNodeType, config: ZeroMQHeartbeatConfig):
+    def __init__(self, context: zmq.Context, node_id: str, session_id: str, node_type: ZeroMQNodeType,
+                 config: ZeroMQHeartbeatConfig):
         self.context = context
         self.node_id = node_id
+        self.session_id = session_id
         self.node_type = node_type
         self.config = config
         self.running = True

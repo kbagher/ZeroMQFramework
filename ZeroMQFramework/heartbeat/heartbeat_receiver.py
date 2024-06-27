@@ -11,8 +11,9 @@ from ..helpers.utils import *
 
 
 class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
-    def __init__(self, context: zmq.Context, node_id: str, node_type: ZeroMQNodeType, config: ZeroMQHeartbeatConfig):
-        super().__init__(context, node_id, node_type, config)
+    def __init__(self, context: zmq.Context, node_id: str, session_id: str, node_type: ZeroMQNodeType,
+                 config: ZeroMQHeartbeatConfig):
+        super().__init__(context, node_id, session_id, node_type, config)
         self.node_heartbeats = defaultdict(lambda: (0, 0))
         self.lock = threading.Lock()
         self.connected_nodes = set()

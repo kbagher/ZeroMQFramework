@@ -46,7 +46,11 @@ def create_message(event_name: str, event_data: dict, include_empty_frame=False)
             json.dumps(event_data).encode('utf-8')  # Event Data
         ]
         if include_empty_frame:
-            # Insert an empty frame at the beginning
+            # Insert an empty frame at the beginning. This is used in some cases.
+            # This is used in the heartbeat sender as the socket type is a dealer
+            # Which causes the socket to add its id to the message, so we have to add an empty frame which allows
+            # ZeroMQ to know that the first frame is the dealer's id
+            # I'm not sure of this is a bug or not, but sometimes ZeroMQ does not add an empty frame.
             message.insert(0, b'')
         return message
     except Exception as e:
@@ -95,6 +99,24 @@ def load_config(config_file, section):
     if section not in config:
         raise ValueError(f"Section {section} not found in the configuration file.")
     return config[section]
+
+
+def save_config(config_file, section, key, value):
+    """
+    Save a key-value pair to a specified section of a configuration file.
+
+    :param config_file: The path to the configuration file.
+    :param section: The section name in the configuration file to save to.
+    :param key: The key to save.
+    :param value: The value to save.
+    """
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    if section not in config:
+        config.add_section(section)
+    config.set(section, key, value)
+    with open(config_file, 'w') as configfile:
+        config.write(configfile)
 
 
 #####################

@@ -11,6 +11,7 @@ def handle_message(message: dict) -> Any:
 
 def main():
     setup_logging('logs/server_logs')
+    config_file = 'nodes_ids.ini'
 
     # server_config = load_config('config.ini', 'Server')
     # server_host = server_config['host']
@@ -33,7 +34,8 @@ def main():
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1)
 
     # Create the worker in REP mode
-    worker = ZeroMQWorker(connection=connection, handle_message=handle_message, heartbeat_config=heartbeat_config,
+    worker = ZeroMQWorker(config_file=config_file, connection=connection, handle_message=handle_message,
+                          heartbeat_config=heartbeat_config,
                           node_type=ZeroMQNodeType.SERVER)
 
     # Start the worker thread
