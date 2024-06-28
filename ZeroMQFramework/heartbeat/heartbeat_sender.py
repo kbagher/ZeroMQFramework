@@ -46,4 +46,3 @@ class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
             except Exception as e:
                 logger.error(f"Heartbeat sender: Unknown exception occurred: {e}")
                 self.connect()
-        print("not in while")

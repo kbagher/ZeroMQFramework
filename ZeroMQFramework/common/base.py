@@ -21,22 +21,24 @@ class ZeroMQBase(threading.Thread):
                  heartbeat_config: Optional[ZeroMQHeartbeatConfig] = None):
         threading.Thread.__init__(self)
         self.config_file = config_file
+
         # not used in router as it has front- and back-end connections which is maintained internally by the router
         self.connection = connection
         self.handle_message = handle_message
         self.shutdown_requested = False
         self.context = context or zmq.Context()
         self.node_type = node_type
+        self._is_connected = threading.Event()
+        self._is_connected_timeout = 3  # in seconds
 
         self.node_id = self.load_or_generate_node_id()
         self.session_id = get_uuid_hex(16)
         self.socket = self.context.socket(self.get_socket_type())
         self.socket.setsockopt(zmq.IDENTITY, self.node_id.encode('utf-8'))
-        # if node_type == ZeroMQNodeType.SERVER:
         self.socket_monitor = ZeroMQSocketMonitor(self.context, self.socket,
-                                                  on_socket_closed_callback=self.socket_closed_callback(),
-                                                  on_socket_connect_callback=self.socket_connect_callback(),
-                                                  on_socket_disconnect_callback=self.socket_disconnect_callback())
+                                                  on_socket_closed_callback=self.socket_closed_callback,
+                                                  on_socket_connect_callback=self.socket_connect_callback,
+                                                  on_socket_disconnect_callback=self.socket_disconnect_callback)
         self.socket_monitor.start()
 
         self.heartbeat_config = heartbeat_config
@@ -89,19 +91,65 @@ class ZeroMQBase(threading.Thread):
                                                node_type=self.node_type, config=self.heartbeat_config)
         return None
 
-    @abstractmethod
+    def is_connected(self):
+        return self._is_connected.is_set()
+
     def socket_connect_callback(self):
-        pass
+        """
+        Callback method for socket monitor.
+        This method is called when a socket connection is established.
 
-    @abstractmethod
+        :return: None
+        """
+        self._is_connected.set()
+
     def socket_disconnect_callback(self):
-        pass
+        """
+        Callback method for socket monitor.
+        This method is called when a socket disconnected.
 
-    @abstractmethod
+        :return: None
+
+        """
+        self._is_connected.clear()
+
     def socket_closed_callback(self):
-        pass
+        """
+        Callback method called when the socket is closed.
+        This method is called when a socket closed.
+
+        :return: None
+        """
+        self._is_connected.clear()
+
+    def wait_for_connection(self, timeout: float = None):
+        """
+        Wait for a connection to be established.
+
+        :param timeout: Maximum time to wait for the connection in seconds.
+                        If not specified, the default timeout value is used.
+        :type timeout: float
+        :return: Returns True if a connection was established within the specified timeout,
+                 otherwise returns False.
+        :rtype: bool
+        """
+        if timeout is None:
+            timeout = self._is_connected_timeout
+
+        if not self._is_connected.wait(timeout=timeout):
+            logger.debug(f"Wait for connection timed out for node {self.node_id} after "
+                         f"{self._is_connected_timeout} seconds")
+            return False
+        return True
 
     def load_or_generate_node_id(self):
+        """
+        Loads the node_id from the configuration file if it exists,
+        otherwise generates a new node_id and saves it in the configuration file.
+
+        :return: The loaded or generated node_id
+        :rtype: str
+        """
         try:
             config = load_config(self.config_file, self.node_type.value.lower())
             node_id = config.get('node_id')
@@ -119,6 +167,15 @@ class ZeroMQBase(threading.Thread):
         self.shutdown_requested = True
 
     def cleanup(self):
+        """
+        Perform cleanup by stopping the socket monitor, stopping the heartbeat, closing the socket,
+        terminating the context, and logging the cleanup completion.
+        If you are going to add more connections, working threads, etc...
+        make sure the cleanup the resources in order.
+        For example, you can't terminate the context before closing the socket, duh!!
+
+        :return: None
+        """
         logger.info("Performing cleanup...")
         if self.socket_monitor:
             self.socket_monitor.stop()

@@ -16,16 +16,16 @@ class ZeroMQClient(ZeroMQBase):
         self.timeout = timeout
         self.retry_attempts = retry_attempts
         self.retry_timeout = retry_timeout
-        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout)
-        self.socket.setsockopt(zmq.SNDTIMEO, self.timeout)
-        self.connected = False
+        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout * 1000)  # milliseconds
+        self.socket.setsockopt(zmq.SNDTIMEO, self.timeout * 1000)  # milliseconds
+        # self.connected = False
         self.heartbeat_started = False
         self.poller = zmq.Poller()
 
     def connect(self):
         connection_string = self.connection.get_connection_string(bind=False)
         self.socket.connect(connection_string)
-        self.connected = True
+        # self.connected = True
         if self.heartbeat_enabled and not self.heartbeat_started:
             logger.info('Client: Starting heartbeat')
             self.heartbeat.start()
@@ -35,8 +35,8 @@ class ZeroMQClient(ZeroMQBase):
 
     def reconnect(self):
         self._reinitialize_socket()
-        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout)
-        self.socket.setsockopt(zmq.SNDTIMEO, self.timeout)
+        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout * 1000)  # milliseconds
+        self.socket.setsockopt(zmq.SNDTIMEO, self.timeout * 1000)  # milliseconds
         attempts = 0
         while attempts < self.retry_attempts:
             try:
@@ -49,8 +49,14 @@ class ZeroMQClient(ZeroMQBase):
         raise ZeroMQConnectionError("Client: Unable to reconnect after several attempts")
 
     def send_message(self, event_name: str, event_data: dict):
-        if not self.connected:
-            self.reconnect()
+        if not self.is_connected():
+            # time.sleep(1)
+            # return
+            logger.warning("Client is not connected. Waiting for a connection")
+            super().wait_for_connection(self.timeout)
+            if not self.is_connected():
+                raise ZeroMQConnectionError("Client is not connected. Connect first before sending a message")
+            # self.reconnect()
 
         message = create_message(event_name, event_data)
         attempts = 0
@@ -66,26 +72,17 @@ class ZeroMQClient(ZeroMQBase):
             except zmq.ZMQError as e:
                 if e.errno in (zmq.EFSM, zmq.EAGAIN):
                     logger.error(f"Client: Socket is in an invalid state, reconnecting socket. {e}")
-                    self.connected = False
+                    # self.connected = False
                     self.reconnect()
                 else:
                     logger.error(f"Client: ZMQError occurred: {e}, reconnecting socket.")
-                    self.connected = False
+                    # self.connected = False
                     self.reconnect()
         raise ZeroMQTimeoutError("Client: Unable to send message after several attempts")
 
     def receive_message(self):
         reply = self.socket.recv_multipart()
         return parse_message(reply)
-
-    def socket_connect_callback(self):
-        pass
-
-    def socket_closed_callback(self):
-        pass
-
-    def socket_disconnect_callback(self):
-        pass
 
     def cleanup(self):
         logger.info("Client: Cleaning up client...")

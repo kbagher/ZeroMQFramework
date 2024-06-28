@@ -18,7 +18,7 @@ class ZeroMQSocketMonitor:
         self.running_event = Event()
         self.reset_socket_event = Event()
         self.stop_warnings = Event()
-        self.connected = False
+        self._is_connected = False
         self.monitor_thread = None
         self.lock = Lock()
         self.poller = zmq.Poller()
@@ -98,18 +98,18 @@ class ZeroMQSocketMonitor:
                     event_type = event_dict['event']
                     with self.lock:
                         if event_type == zmq.EVENT_CONNECTED:
-                            self.connected = True
-                            logger.info("Socket monitor: Connected")
+                            self._is_connected = True
+                            logger.debug("Socket monitor: Connected")
                             self.stop_warnings.clear()
                             if self.on_socket_connect_callback:
                                 self.on_socket_connect_callback()
                         elif event_type == zmq.EVENT_DISCONNECTED:
-                            self.connected = False
-                            logger.info("Socket monitor: Disconnected")
+                            self._is_connected = False
+                            logger.debug("Socket monitor: ")
                             if self.on_socket_disconnect_callback:
                                 self.on_socket_disconnect_callback()
                         elif event_type == zmq.EVENT_CLOSED:
-                            self.connected = False
+                            self._is_connected = False
                             if not self.stop_warnings.is_set():
                                 logger.warning("Socket monitor: Closed. If the monitored socket is reinitialised, "
                                                "make sure you call reset_socket() to set the new socket object")
@@ -120,6 +120,7 @@ class ZeroMQSocketMonitor:
                     pass  # Handle non-blocking receive timeout
                 except Exception as e:
                     logger.error(f"Socket monitor exception: {e}")
+        print("Socket monitor After loop!!!!!! =====")
 
     def cleanup(self):
         self.running_event.clear()
@@ -133,8 +134,8 @@ class ZeroMQSocketMonitor:
             self.monitor_socket.close()
             self.monitor_socket = None
         with self.lock:
-            self.connected = False
+            self._is_connected = False
 
     def is_connected(self):
         with self.lock:
-            return self.connected
+            return self._is_connected

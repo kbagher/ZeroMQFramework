@@ -49,7 +49,7 @@ def main():
     connection = ZeroMQTCPConnection(port=server_port, host=server_host)
 
     client_obj = ZeroMQClient(config_file=config_file, connection=connection, heartbeat_config=heartbeat_config,
-                              timeout=5000, retry_attempts=3,
+                              timeout=5, retry_attempts=3,
                               retry_timeout=1000)
     batch_start_time = time.time()
 

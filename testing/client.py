@@ -13,7 +13,7 @@ class ZeroMQClient:
         self.monitor.start()
 
     def send_message(self, message):
-        if self.monitor.is_connected():
+        if self.monitor._is_connected():
             try:
                 logger.info(f"Client sending: {message}")
                 self.socket.send_string(message)

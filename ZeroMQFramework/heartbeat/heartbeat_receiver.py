@@ -28,7 +28,7 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
         with self.lock:
             if node_id not in self.connected_nodes:
                 self.connected_nodes.add(node_id)
-                logger.info(f"Node {node_id} connected for the first time")
+                logger.info(f"Node {node_id} connected")
             self.node_heartbeats[node_id] = (get_current_time(), 0)
 
     def check_missed_heartbeats(self):
