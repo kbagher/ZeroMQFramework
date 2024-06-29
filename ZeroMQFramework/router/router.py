@@ -1,3 +1,4 @@
+from ZeroMQFramework import ZeroMQBase
 from ZeroMQFramework.common.connection_protocol import *
 from ZeroMQFramework.helpers.utils import *
 from ZeroMQFramework.router.routing_strategy import *
@@ -11,60 +12,47 @@ import threading
 import signal
 
 
-class ZeroMQRouter:
-    def __init__(self, frontend_connection: ZeroMQConnection, backend_connection: ZeroMQConnection, heartbeat_config: ZeroMQHeartbeatConfig = None,
+class ZeroMQRouter(ZeroMQBase):
+    def __init__(self, config_file: str, frontend_connection: ZeroMQConnection, backend_connection: ZeroMQConnection,
+                 heartbeat_config: ZeroMQHeartbeatConfig = None,
                  strategy: Optional[ZeroMQRoutingStrategy] = None):
+        super().__init__(config_file, connection=frontend_connection, node_type=ZeroMQNodeType.ROUTER,
+                         handle_message=None, context=None, heartbeat_config=heartbeat_config)
+
         self.frontend_connection = frontend_connection
+        self.frontend_socket = None
+        self.frontend_connection_string = None
         self.backend_connection = backend_connection
-        self.shutdown_requested = True
-        self.heartbeat_config = heartbeat_config
-        self.frontend = None
-        self.backend = None
-        self.context = zmq.Context()
+        self.backend_socket = None
+        self.backend_connection_string = None
+        self.configure_socket()
+
+        self.proxy_thread = None
         self.strategy = strategy
-        self.heartbeat_enabled = heartbeat_config is not None
 
-        self.router_id = get_uuid_hex()
+    def configure_socket(self):
+        self.frontend_socket = self.context.socket(zmq.ROUTER)
+        self.frontend_socket.setsockopt(zmq.IDENTITY, self.get_socket_identity())
 
-        if self.heartbeat_enabled:
-            self.heartbeat_handler = ZeroMQHeartbeatReceiver(context=self.context, node_id=self.router_id,
-                                                             node_type=ZeroMQNodeType.ROUTER,
-                                                             config=self.heartbeat_config)
-        else:
-            self.heartbeat_handler = None
+        self.backend_socket = self.context.socket(zmq.DEALER)
+        self.backend_socket.setsockopt(zmq.IDENTITY, self.get_socket_identity())
 
-        signal.signal(signal.SIGINT, self.request_shutdown)
-        signal.signal(signal.SIGTERM, self.request_shutdown)
-
-    def request_shutdown(self, signum, frame):
-        logger.warning(f"Received signal {signum}, shutting down gracefully...")
-        self.shutdown_requested = False
+        self.frontend_connection_string = self.frontend_connection.get_connection_string(bind=True)
+        self.backend_connection_string = self.backend_connection.get_connection_string(bind=True)
 
     def start(self):
-        context = self.context
-        self.frontend = context.socket(zmq.ROUTER)
-        self.frontend.setsockopt(zmq.IDENTITY, self.router_id.encode('utf-8'))  # Set the worker ID
-
-        self.backend = context.socket(zmq.DEALER)
-        self.backend.setsockopt(zmq.IDENTITY, self.router_id.encode('utf-8'))  # Set the worker ID
-
-        frontend_connection_string = self.frontend_connection.get_connection_string(bind=True)
-        backend_connection_string = self.backend_connection.get_connection_string(bind=True)
 
         try:
-            self.frontend.bind(frontend_connection_string)
-            self.backend.bind(backend_connection_string)
+            self.frontend_socket.bind(self.frontend_connection_string)
+            self.backend_socket.bind(self.backend_connection_string)
 
-            logger.info(
-                f"Router started and bound to frontend {frontend_connection_string} and backend {backend_connection_string}")
+            logger.info(f"router started and bound to frontend {self.frontend_connection_string} "
+                        f"and backend {self.backend_connection_string}")
 
-            proxy_thread = threading.Thread(target=self._start_proxy)
-            proxy_thread.start()
-
-            if self.heartbeat_enabled:
-                self.heartbeat_handler.start()
-
-            proxy_thread.join()
+            if self.strategy:
+                raise ValueError("This is not implemented yet")
+            else:
+                self._start_standard_proxy()
 
         except zmq.ZMQError as e:
             logger.error(f"ZMQ Error occurred: {e}")
@@ -72,63 +60,41 @@ class ZeroMQRouter:
             logger.error(f"Unknown exception occurred: {e}")
         finally:
             logger.info("Router is stopping...")
-            if self.heartbeat_enabled:
-                logger.info("Heartbeat is stopping...")
-                self.heartbeat_handler.stop()
             logger.info("Cleaning up...")
             self.cleanup()
 
-    def _start_proxy(self):
-        poller = zmq.Poller()
-        poller.register(self.frontend, zmq.POLLIN)
-        poller.register(self.backend, zmq.POLLIN)
-
-        while self.shutdown_requested:
-            socks = dict(poller.poll(timeout=4000))
-            try:
-                if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
-                    message = self.frontend.recv_multipart()
-                    self.backend.send_multipart(message)
-
-                if self.backend in socks and socks[self.backend] == zmq.POLLIN:
-                    message = self.backend.recv_multipart()
-                    try:
-                        parsed_message = parse_message(message)
-                        if self.heartbeat_enabled and self.is_heartbeat(parsed_message):
-                            self.heartbeat_handler.handle_heartbeat(parsed_message["event_data"]["worker_id"])
-                    except ZeroMQMalformedMessage as e:
-                        logger.error(f"Error in message parsing or handling: {e}")
-                    else:
-                        if self.strategy:
-                            self.strategy.route(self.frontend, self.backend)
-                        else:
-                            self.frontend.send_multipart(message)
-            except zmq.ZMQError as e:
-                logger.error(f"ZMQ Error occurred: {e}")
-            except Exception as e:
-                logger.error(f"Unknown exception occurred: {e}")
-
-        # Exited the loop (self.shutdown_requested is true)
-        self.cleanup(poller)
-
-    def is_heartbeat(self, parsed_message):
+    def _start_standard_proxy(self):
         try:
-            return parsed_message["event_name"] == "HEARTBEAT"
-        except ValueError:
-            return False
+            while not self.shutdown_requested:
+                zmq.proxy(self.frontend_socket, self.backend_socket)
+        except zmq.ContextTerminated:
+            if self.shutdown_requested:
+                logger.info("Proxy shutdown gracefully")
+            else:
+                logger.error("ZMQ Proxy error: Context terminated unexpectedly")
+        except zmq.ZMQError as e:
+            logger.error(f"ZMQ Proxy error: {e}")
 
-    def cleanup(self, poller=None):
+    def _start_custom_routing(self):
+        pass
+        # self.poller.register(self.frontend_socket, zmq.POLLIN)
+        # self.poller.register(self.backend_socket, zmq.POLLIN)
+        #
+        # while not self.shutdown_requested:
+        #     socks = dict(self.poller.poll(self.poller_timeout))
+        #     if self.frontend_socket in socks and socks[self.frontend_socket] == zmq.POLLIN:
+        #         message = self.frontend_socket.recv_multipart()
+        #         self.backend_socket.send_multipart(message)
+        #
+        #     if self.backend_socket in socks and socks[self.backend_socket] == zmq.POLLIN:
+        #         message = self.backend_socket.recv_multipart()
+        #         self.strategy.route(self.backend_socket, self.backend_socket)
+
+    def cleanup(self):
         logger.info("Router is shutting down, performing cleanup...")
-        if self.heartbeat_enabled:
-            logger.info("Heartbeat is stopping...")
-            self.heartbeat_handler.stop()
-        if self.frontend:
-            self.frontend.close()
-            if poller:
-                poller.unregister(self.frontend)
-        if self.backend:
-            self.backend.close()
-            if poller:
-                poller.unregister(self.backend)
-        self.context.term()
+        if self.frontend_socket:
+            self.frontend_socket.close()
+        if self.backend_socket:
+            self.backend_socket.close()
+        super().cleanup()
         logger.info("Cleaned up ZeroMQ sockets and context.")

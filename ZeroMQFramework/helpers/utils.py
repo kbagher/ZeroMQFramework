@@ -140,7 +140,8 @@ def setup_logging(log_folder):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     log_file = os.path.join(log_folder, f'debug_{timestamp}.log')
 
-    logger.add(log_file, level="DEBUG", format="{time} - {level} - {name}:{line} - {message}")
+    logger.add(log_file, level="DEBUG", format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{line} - {message}",
+               rotation="10 MB", retention="7 days")
 
     # Remove the default stderr logger
     logger.remove(0)
@@ -152,7 +153,7 @@ def setup_logging(log_folder):
     logger.configure(patcher=patch_logging)
 
     # Optionally, if you want to keep old logs clean
-    cleanup_old_logs(log_folder)
+    # cleanup_old_logs(log_folder)
 
 
 def patch_logging(record):

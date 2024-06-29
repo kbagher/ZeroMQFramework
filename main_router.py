@@ -3,6 +3,7 @@ from ZeroMQFramework import *
 
 def main():
     setup_logging('logs/router_logs')
+    config_file = 'config.ini'
 
     try:
         # Create frontend TCP connection.
@@ -25,7 +26,8 @@ def main():
         heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1, timeout=5, max_missed=1)
 
         # Initialize and start the router
-        router = ZeroMQRouter(frontend_connection=frontend_conn, backend_connection=backend_conn,
+        router = ZeroMQRouter(config_file=config_file, frontend_connection=frontend_conn,
+                              backend_connection=backend_conn,
                               heartbeat_config=heartbeat_config)
         router.start()
     except Exception as e:

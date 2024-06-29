@@ -20,8 +20,6 @@ class ZeroMQWorker(ZeroMQBase, ZeroMQProcessingBase, threading.Thread):
                  heartbeat_config: ZeroMQHeartbeatConfig = None):
         super().__init__(config_file, connection, node_type, handle_message, context, heartbeat_config)
 
-        self.poll_timeout = 1000  # milliseconds
-        self.poller = zmq.Poller()
 
     def run(self):
         self.start_worker()
@@ -44,7 +42,7 @@ class ZeroMQWorker(ZeroMQBase, ZeroMQProcessingBase, threading.Thread):
 
         while not self.shutdown_requested:
             try:
-                socks = dict(self.poller.poll(timeout=self.poll_timeout))
+                socks = dict(self.poller.poll(timeout=self.poller_timeout))
                 if self.socket in socks:
                     message = self.socket.recv_multipart()
                     if self.node_type == ZeroMQNodeType.WORKER:  # worker mode

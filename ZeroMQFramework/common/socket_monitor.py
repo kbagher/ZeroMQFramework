@@ -38,7 +38,7 @@ class ZeroMQSocketMonitor:
         """
         try:
             if self.monitor_socket is None:  # avoid creating multiple threads
-                logger.info("Socket monitor: Starting monitor thread")
+                logger.info("starting monitor thread")
                 self.running_event.set()
                 self._initialize_monitor()
                 self.monitor_thread = Thread(target=self.monitor_events, daemon=True)
@@ -119,19 +119,19 @@ class ZeroMQSocketMonitor:
                     with self.lock:
                         if event_type == zmq.EVENT_CONNECTED:
                             self._is_connected = True
-                            logger.debug("Socket monitor: Connected")
+                            logger.debug("socket connected")
                             self.stop_warnings.clear()
                             if self.on_socket_connect_callback:
                                 self.on_socket_connect_callback()
                         elif event_type == zmq.EVENT_DISCONNECTED:
                             self._is_connected = False
-                            logger.debug("Socket monitor: Disconnected")
+                            logger.debug("socket disconnected")
                             if self.on_socket_disconnect_callback:
                                 self.on_socket_disconnect_callback()
                         elif event_type == zmq.EVENT_CLOSED:
                             self._is_connected = False
                             if not self.stop_warnings.is_set():
-                                logger.debug("Socket monitor: Closed. If the monitored socket is reinitialised, "
+                                logger.debug("socket closed. If the monitored socket is reinitialised, "
                                              "make sure you call reset_socket() to set the new socket object")
                                 self.stop_warnings.set()  # to avoid repeated printing. Remove if not needed
                             if self.on_socket_closed_callback:

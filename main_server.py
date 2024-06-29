@@ -14,11 +14,6 @@ def main():
     config_file = 'config.ini'
 
     # server_config = load_config('config.ini', 'Server')
-    # server_host = server_config['host']
-    # server_port = server_config.getint('server_port')
-    # server_heartbeat_port = server_config.getint('server_heartbeat_port')
-
-    # server_config = load_config('config.ini', 'Server')
     config = load_config(config_file, "general")
     node_id = config.get('server_host')
 

@@ -31,6 +31,8 @@ class ZeroMQBase(threading.Thread):
         self.node_type = node_type
         self._is_connected = threading.Event()
         self._is_connected_timeout = 2  # in seconds
+        self.poller = zmq.Poller()
+        self.poller_timeout = 1000  # milliseconds
         self.socket_status = ZeroMQSocketStatus.CLOSED
 
         self.node_id = self.load_or_generate_node_id()
@@ -93,11 +95,12 @@ class ZeroMQBase(threading.Thread):
     def log_node_details(self):
         connection_string = self.connection.get_connection_string(bind=False)
         logger.info(
-            f"Node Details ==> Node ID: {self.node_id}, Session ID: {self.session_id}, Node Type: {self.node_type} "
-            f"Config File: {self.config_file}, Connection String: {connection_string}, "
-            f"Heartbeat Enabled: {self.heartbeat_enabled}, Heartbeat Interval: {self.heartbeat_config.interval if self.heartbeat_enabled else 'N/A'}, "
-            f"Heartbeat Timeout: {self.heartbeat_config.timeout if self.heartbeat_enabled else 'N/A'}, "
-            f"Heartbeat Max Missed: {self.heartbeat_config.max_missed if self.heartbeat_enabled else 'N/A'}")
+            f"node details ==> node id: {self.node_id}, session if: {self.session_id}, node type: {self.node_type.value} "
+            f"config file: {self.config_file}, connection string: {connection_string}, "
+            f"heartbeat enabled: {self.heartbeat_enabled}, heartbeat interval: "
+            f"{self.heartbeat_config.interval if self.heartbeat_enabled else 'N/A'}, "
+            f"heartbeat timeout: {self.heartbeat_config.timeout if self.heartbeat_enabled else 'N/A'}, "
+            f"heartbeat max missed: {self.heartbeat_config.max_missed if self.heartbeat_enabled else 'N/A'}")
 
     def init_heartbeat(self):
         if self.heartbeat_enabled:
@@ -210,15 +213,15 @@ class ZeroMQBase(threading.Thread):
 
         :return: None
         """
-        logger.info("Performing cleanup...")
+        logger.debug("Performing cleanup...")
         if self.socket_monitor:
             self.socket_monitor.stop()
         if self.heartbeat:
-            logger.info(f"{self.node_type.value} is calling stop heartbeat...")
+            logger.debug(f"{self.node_type.value} is calling stop heartbeat...")
             self.heartbeat.stop()  # Ensure heartbeat thread is stopped
         if self.socket:
-            logger.info(f"{self.node_type.value} is closing socket...")
+            logger.debug(f"{self.node_type.value} is closing socket...")
             self.socket.close()  # Close the socket
-        logger.info(f"{self.node_type.value} is terminating context...")
+        logger.debug(f"{self.node_type.value} is terminating context...")
         self.context.term()  # Terminate the context
-        logger.info("Cleanup complete.")
+        logger.debug("Cleanup complete.")

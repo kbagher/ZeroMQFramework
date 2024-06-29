@@ -3,6 +3,7 @@ import time
 from abc import ABC, abstractmethod
 from enum import Enum
 
+# from .. import get_current_time
 from ..heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 from ZeroMQFramework.common.node_type import ZeroMQNodeType
 from ..common.socket_monitor import ZeroMQSocketMonitor
@@ -40,41 +41,50 @@ class ZeroMQHeartbeat(ABC):
     def is_connected(self):
         return self.socket_monitor.is_connected()
 
+    def create_node_info(self, node_id: str, session_id: str, node_type: str):
+        return {
+            'node_id': node_id,
+            'session_id': session_id,
+            'node_type': node_type,
+            'last_heartbeat': get_current_time(),
+            'missed_count': 0
+        }
+
     def start(self):
         # Always use demon to avoid blocking the main app from exiting
-        logger.info("Heartbeat: starHeartbeat: start")
+        logger.debug("Starting heartbeat thread")
         self.heartbeat_thread = threading.Thread(target=self._run, daemon=True)
         self.heartbeat_thread.start()
 
-    def connect(self, bind=False, start_heartbeat=True):
+    def connect(self, bind=False):
         while self.running:
             try:
                 connection_string = self.config.connection.get_connection_string(bind)
-                logger.info(f'Heartbeat: Connecting to {connection_string}')
+                logger.debug(f'heartbeat connecting to {connection_string}')
                 # Always start the monitor before connecting with the socket. This ensures that you capture the
                 # initial events I use monitor on sender only as the senders will send the heartbeat and will know if
                 # the remote node is up or down
-                if self.get_heartbeat_type() is ZeroMQHeartbeatType.SENDER and start_heartbeat:
-                    logger.info(f'Heartbeat: Starting socket monitor')
+                if self.get_heartbeat_type() is ZeroMQHeartbeatType.SENDER:
+                    logger.debug(f'starting socket monitor')
                     self.socket_monitor.start()  # Start the monitor after connecting
                 if bind:
                     self.socket.bind(connection_string)
-                    logger.info(f'Heartbeat: Heartbeat receiver bound successfully. {connection_string}')
+                    logger.info(f'heartbeat receiver bound successfully. {connection_string}')
                 else:
                     self.socket.connect(connection_string)
-                    logger.info(f'Heartbeat: Heartbeat sender connected successfully. {connection_string}')
+                    logger.info(f'heartbeat sender connected successfully. {connection_string}')
                 break
             except zmq.ZMQError as e:
-                logger.error(f"Heartbeat: ZMQ Error occurred during connect: ", e)
+                logger.error(f"ZMQ Error occurred during connect: ", e)
                 time.sleep(self.config.interval)
                 self._reinitialize_socket()
             except Exception as e:
-                logger.error(f"Heartbeat: Unknown exception occurred during connect: ", e)
+                logger.error(f"unknown exception occurred during connect: ", e)
                 time.sleep(self.config.interval)
                 self._reinitialize_socket()
 
     def _reinitialize_socket(self):
-        logger.info(f'Heartbeat: Reinitializing socket')
+        logger.info(f'reinitializing socket')
         if self.socket:
             self.socket.close()
         new_socket = self.context.socket(self.get_socket_type())
