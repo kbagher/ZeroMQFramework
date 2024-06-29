@@ -29,11 +29,19 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
             if node_id not in self.connected_nodes:
                 self.connected_nodes.add(node_id)
                 logger.info(f"Node {node_id} connected")
+                self.log_connected_nodes()
             self.node_heartbeats[node_id] = (get_current_time(), 0)
+
+    def log_connected_nodes(self):
+        if self.connected_nodes:
+            logger.debug("Connected nodes:")
+            for node in self.connected_nodes:
+                logger.debug(f"{node}")
 
     def check_missed_heartbeats(self):
         current_time = get_current_time()
         nodes_to_remove = []
+        print_nodes = False
         with self.lock:
             for node_id, (last_heartbeat, missed_count) in list(self.node_heartbeats.items()):
                 if current_time - last_heartbeat > (self.config.timeout * 1000):
@@ -41,6 +49,7 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
                     if missed_count > self.config.max_missed:
                         nodes_to_remove.append(node_id)
                         logger.info(f"Node {node_id} removed after missing {missed_count} heartbeats")
+                        self.log_connected_nodes()
                     else:
                         self.node_heartbeats[node_id] = (last_heartbeat, missed_count)
 
