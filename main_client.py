@@ -25,22 +25,28 @@ def signal_handler(signal, frame):
 
 def main():
     setup_logging('logs/client_logs')
-    config_file = 'nodes_ids.ini'
+    config_file = 'config.ini'
 
-    server_host = 'localhost'
-    server_port = 5556
-    server_heartbeat_port = 5555
+    config = load_config(config_file, "general")
+    node_id = config.get('server_host')
+
+    server_host = config.get('server_host')
+    server_port = config.get('server_port')
+    server_heartbeat_port = config.get('server_heartbeat_port')
+    server_heartbeat_host = config.get('server_heartbeat_host')
 
     client_id = generate_short_udid()
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"
-    heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_host)
+    heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_heartbeat_host)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
     connection = ZeroMQTCPConnection(port=server_port, host=server_host)
 
     client_obj = ZeroMQClient(config_file=config_file, connection=connection, heartbeat_config=heartbeat_config,
                               timeout=5)
     batch_start_time = time.time()
+
+    retry_timeout = 2
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -79,19 +85,19 @@ def main():
                 # time.sleep(0.2)
 
             except ZeroMQSocketError as e:
-                logger.warning(f"Main: socket error {e}")
-                time.sleep(client_obj.retry_timeout / 1000)
+                logger.warning(f"Main: socket error. {e}")
+                time.sleep(retry_timeout)
                 client_obj.connect()
             except ZeroMQMalformedMessage:
                 logger.error(f"Error: Message malformed: {client_id}")
             except ZeroMQTimeoutError:
                 logger.warning("No response received within the timeout period, retrying...")
-                time.sleep(client_obj.retry_timeout / 1000)
+                time.sleep(retry_timeout)
             except ZeroMQConnectionError as e:
                 logger.error(f"ZeroMQConnectionError occurred: {e}, reconnecting client.")
                 client_obj.connect()
-                time.sleep(client_obj.retry_timeout / 1000)
-            except ZeroMQClient as e:
+                time.sleep(retry_timeout)
+            except ZeroMQClientError as e:
                 logger.error(f"============ {e}")
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
@@ -99,6 +105,7 @@ def main():
         client_obj.cleanup()
 
     logger.info(f"Done Sending:")
+
 
 if __name__ == "__main__":
     main()

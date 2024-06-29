@@ -34,12 +34,16 @@ class ZeroMQClient(ZeroMQBase):
 
         :return: True if the connection is successful, False otherwise.
         """
+        logger.debug(f"Connect")
+        logger.debug(f"heartbeat_enabled = {self.heartbeat_enabled}, heartbeat_started = {self.heartbeat_started}")
         if self.heartbeat_enabled and not self.heartbeat_started:
             logger.info('Client: Starting heartbeat')
             self.heartbeat.start()
             self.heartbeat_started = True
 
-        if self.socket_status == ZeroMQSocketStatus.CLOSED and self._reinitialize:
+        logger.debug(f"socket_status = {self.socket_status.value}, _reinitialize = {self._reinitialize}, "
+                     f"socket_requires_reset = {self.socket_requires_reset}")
+        if self.socket_status == ZeroMQSocketStatus.CLOSED and self._reinitialize or self.socket_requires_reset:
             logger.info("Client: Reinitializing socket due to closed status")
             self._reinitialize_socket()
             self._configure_socket()
@@ -82,13 +86,14 @@ class ZeroMQClient(ZeroMQBase):
             self.socket.send_multipart(message)
             return self.receive_message()
         except zmq.Again:
-            err = f"Client: No response received within the timeout period {self.timeout} seconds"
+            err = f"Client: No response received within the timeout period {self.timeout / 1000} seconds"
             logger.warning(err)
             raise ZeroMQTimeoutError(err)
         except zmq.ZMQError as e:
             if e.errno in (zmq.EFSM, zmq.EAGAIN):
                 err = f"Socket is in an invalid state. {e}"
                 logger.error(err)
+                self.socket_requires_reset = True
                 raise ZeroMQQSocketInvalid(err)
             else:
                 err = f"Client: ZMQError occurred: {e}."

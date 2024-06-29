@@ -55,7 +55,9 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
             parsed_message = parse_message(message)
             if parsed_message["event_name"] == ZeroMQEvent.HEARTBEAT.value:
                 node_id = parsed_message["event_data"]["node_id"]
-                self.handle_heartbeat(node_id)
+                session_id = parsed_message["event_data"]["session_id"]
+                node_identity = f"{node_id}_{session_id}"
+                self.handle_heartbeat(node_identity)
 
     def _run(self):
         self.connect(bind=True)

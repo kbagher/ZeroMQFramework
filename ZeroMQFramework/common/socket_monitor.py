@@ -21,7 +21,7 @@ class ZeroMQSocketMonitor:
         self.monitor_thread = None
         self.lock = Lock()
         self.poller = zmq.Poller()
-        self.poll_timeout = 500
+        self.poll_timeout = 500  # in ms
         self.on_socket_closed_callback = on_socket_closed_callback  # inform the main class about socket status
         self.on_socket_connect_callback = on_socket_connect_callback  # inform the main class about socket status
         self.on_socket_disconnect_callback = on_socket_disconnect_callback  # inform the main class about socket status
@@ -70,8 +70,10 @@ class ZeroMQSocketMonitor:
         self.cleanup_monitor_socket()  # Ensure the old monitor socket is cleaned up
         self.socket = new_socket
         self._initialize_monitor()
+        logger.debug("Socket monitor initialised")
         self.reset_socket_event.clear()
         self.stop_warnings.clear()
+        logger.debug("Socket monitor reset complete")
 
     def _initialize_monitor(self):
         """
@@ -80,21 +82,27 @@ class ZeroMQSocketMonitor:
         :return:
             This method does not return anything.
         """
+        logger.debug("Initializing monitor socket")
         tmp_id = get_uuid_hex(8)
         self.socket.monitor(f"inproc://{tmp_id}.sock", zmq.EVENT_ALL)
         self.monitor_socket = self.context.socket(zmq.PAIR)
         self.monitor_socket.connect(f"inproc://{tmp_id}.sock")
+        logger.debug(f"Monitor socket connected to inproc://{tmp_id}.sock")
         self.poller.register(self.monitor_socket, zmq.POLLIN)
+        logger.debug(f"Monitor socket poll registered: {self.monitor_socket}")
 
     def cleanup_monitor_socket(self):
         """
         Clean up the current monitor socket.
         """
         if self.monitor_socket:
+            logger.debug("Cleaning up monitor socket")
             if self.monitor_socket in self.poller.sockets:
                 self.poller.unregister(self.monitor_socket)
+                logger.debug("Unregistered monitor socket poller")
             self.monitor_socket.close()
             self.monitor_socket = None
+            logger.debug("Monitor socket closed")
 
     def monitor_events(self):
 
@@ -102,7 +110,7 @@ class ZeroMQSocketMonitor:
             if self.reset_socket_event.is_set():
                 continue
 
-            socks = dict(self.poller.poll(timeout=self.poll_timeout))
+            socks = dict(self.poller.poll(timeout=self.poll_timeout))  # ms
             if self.monitor_socket in socks:
                 try:
                     event = self.monitor_socket.recv_multipart(flags=zmq.NOBLOCK)

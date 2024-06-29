@@ -44,14 +44,14 @@ class ZeroMQBase(threading.Thread):
         self.socket_monitor.start()
 
         self.heartbeat_config = heartbeat_config
-        # self.heartbeat_enabled = heartbeat_config is not None
-        self.heartbeat_enabled = None
+        self.heartbeat_enabled = heartbeat_config is not None
         self.heartbeat = self.init_heartbeat()
 
         signal.signal(signal.SIGINT, self.request_shutdown)
         signal.signal(signal.SIGTERM, self.request_shutdown)
         self.daemon = True
         self.log_node_details()
+        self._socket_requires_rest = False  # used if a socket is in ann invalid state and needs to be rest
 
     def get_socket_type(self):
         if self.node_type == ZeroMQNodeType.WORKER:
@@ -78,13 +78,17 @@ class ZeroMQBase(threading.Thread):
         return f"{self.node_id}_{self.session_id}".encode('utf-8')
 
     def _reinitialize_socket(self):
-        logger.info("Reinitializing socket...")
+        logger.debug("Reinitializing socket...")
         self._is_connected.clear()
         if self.socket is not None:
+            logger.debug("Closing current socket")
             self.socket.close()
         self.socket = self.context.socket(self.get_socket_type())
+        logger.debug("New socket created")
         self.socket.setsockopt(zmq.IDENTITY, self.get_socket_identity())
+        logger.debug(f"New socket created st identity {self.get_socket_identity()}")
         self.socket_monitor.reset_socket(self.socket)
+        self.socket_requires_reset = False
 
     def log_node_details(self):
         connection_string = self.connection.get_connection_string(bind=False)
@@ -110,6 +114,14 @@ class ZeroMQBase(threading.Thread):
     def is_connected(self):
         return self._is_connected.is_set()
 
+    @property
+    def socket_requires_reset(self):
+        return self._socket_requires_rest
+
+    @socket_requires_reset.setter
+    def socket_requires_reset(self, reset: bool = True):
+        self._socket_requires_rest = reset
+
     def socket_connect_callback(self):
         """
         Callback method for socket monitor.
@@ -119,7 +131,7 @@ class ZeroMQBase(threading.Thread):
         """
         self._is_connected.set()
         self.socket_status = ZeroMQSocketStatus.CONNECTED
-        # logger.info(f"{self.node_type.value}: socket connection established")
+        logger.debug(f"{self.node_type.value}: socket connection established")
 
     def socket_disconnect_callback(self):
         """
@@ -131,7 +143,7 @@ class ZeroMQBase(threading.Thread):
         """
         self._is_connected.clear()
         self.socket_status = ZeroMQSocketStatus.DISCONNECTED
-        # logger.info(f"{self.node_type.value}: socket disconnected")
+        logger.debug(f"{self.node_type.value}: socket disconnected")
 
     def socket_closed_callback(self):
         """
@@ -142,7 +154,7 @@ class ZeroMQBase(threading.Thread):
         """
         self._is_connected.clear()
         self.socket_status = ZeroMQSocketStatus.CLOSED
-        # logger.debug(f"{self.node_type.value}: socket closed")
+        logger.debug(f"{self.node_type.value}: socket closed")
 
     def wait_for_connection(self, timeout: float = None):
         """

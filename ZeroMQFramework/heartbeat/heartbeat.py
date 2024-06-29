@@ -79,7 +79,6 @@ class ZeroMQHeartbeat(ABC):
             self.socket.close()
         new_socket = self.context.socket(self.get_socket_type())
         self.socket = new_socket
-        # self.connect()
         self.socket_monitor.reset_socket(new_socket)
 
     def stop(self):
