@@ -39,7 +39,7 @@ def main():
     connection = ZeroMQTCPConnection(port=server_port, host=server_host)
 
     client_obj = ZeroMQClient(config_file=config_file, connection=connection, heartbeat_config=heartbeat_config,
-                              timeout=5, retry_attempts=3, retry_timeout=1000)
+                              timeout=5)
     batch_start_time = time.time()
 
     signal.signal(signal.SIGINT, signal_handler)
@@ -91,7 +91,8 @@ def main():
                 logger.error(f"ZeroMQConnectionError occurred: {e}, reconnecting client.")
                 client_obj.connect()
                 time.sleep(client_obj.retry_timeout / 1000)
-
+            except ZeroMQClient as e:
+                logger.error(f"============ {e}")
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
     finally:
