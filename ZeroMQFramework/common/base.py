@@ -11,6 +11,7 @@ from ZeroMQFramework.heartbeat.heartbeat_sender import ZeroMQHeartbeatSender
 from ZeroMQFramework.heartbeat.heartbeat_receiver import ZeroMQHeartbeatReceiver
 from ZeroMQFramework.heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
 from ZeroMQFramework.common.socket_monitor import ZeroMQSocketMonitor
+from .socket_status import ZeroMQSocketStatus
 
 from ..helpers.utils import *
 
@@ -29,12 +30,13 @@ class ZeroMQBase(threading.Thread):
         self.context = context or zmq.Context()
         self.node_type = node_type
         self._is_connected = threading.Event()
-        self._is_connected_timeout = 3  # in seconds
+        self._is_connected_timeout = 2  # in seconds
+        self.socket_status = ZeroMQSocketStatus.CLOSED
 
         self.node_id = self.load_or_generate_node_id()
         self.session_id = get_uuid_hex(16)
         self.socket = self.context.socket(self.get_socket_type())
-        self.socket.setsockopt(zmq.IDENTITY, self.node_id.encode('utf-8'))
+        self.socket.setsockopt(zmq.IDENTITY, self.get_socket_identity())
         self.socket_monitor = ZeroMQSocketMonitor(self.context, self.socket,
                                                   on_socket_closed_callback=self.socket_closed_callback,
                                                   on_socket_connect_callback=self.socket_connect_callback,
@@ -42,7 +44,8 @@ class ZeroMQBase(threading.Thread):
         self.socket_monitor.start()
 
         self.heartbeat_config = heartbeat_config
-        self.heartbeat_enabled = heartbeat_config is not None
+        # self.heartbeat_enabled = heartbeat_config is not None
+        self.heartbeat_enabled = None
         self.heartbeat = self.init_heartbeat()
 
         signal.signal(signal.SIGINT, self.request_shutdown)
@@ -62,12 +65,25 @@ class ZeroMQBase(threading.Thread):
         else:
             raise ValueError(f"Unknown node type: {self.node_type}")
 
+    def get_socket_identity(self):
+        """
+        Retrieve the socket identity by combining the node ID and session ID.
+        Be careful here with the id, if multiple clients have the same ID and
+        the router or server will get confused and will cause connections issues.
+        So it's better to combine the node id with its random session id
+
+        :return: The socket identity, encoded in UTF-8.
+        :rtype: bytes
+        """
+        return f"{self.node_id}_{self.session_id}".encode('utf-8')
+
     def _reinitialize_socket(self):
         logger.info("Reinitializing socket...")
-        if self.socket:
+        self._is_connected.clear()
+        if self.socket is not None:
             self.socket.close()
         self.socket = self.context.socket(self.get_socket_type())
-        self.socket.setsockopt(zmq.IDENTITY, self.node_id.encode('utf-8'))
+        self.socket.setsockopt(zmq.IDENTITY, self.get_socket_identity())
         self.socket_monitor.reset_socket(self.socket)
 
     def log_node_details(self):
@@ -102,6 +118,8 @@ class ZeroMQBase(threading.Thread):
         :return: None
         """
         self._is_connected.set()
+        self.socket_status = ZeroMQSocketStatus.CONNECTED
+        # logger.info(f"{self.node_type.value}: socket connection established")
 
     def socket_disconnect_callback(self):
         """
@@ -112,6 +130,8 @@ class ZeroMQBase(threading.Thread):
 
         """
         self._is_connected.clear()
+        self.socket_status = ZeroMQSocketStatus.DISCONNECTED
+        # logger.info(f"{self.node_type.value}: socket disconnected")
 
     def socket_closed_callback(self):
         """
@@ -121,6 +141,8 @@ class ZeroMQBase(threading.Thread):
         :return: None
         """
         self._is_connected.clear()
+        self.socket_status = ZeroMQSocketStatus.CLOSED
+        # logger.debug(f"{self.node_type.value}: socket closed")
 
     def wait_for_connection(self, timeout: float = None):
         """
