@@ -41,7 +41,6 @@ class ZeroMQHeartbeatReceiver(ZeroMQHeartbeat):
     def check_missed_heartbeats(self):
         current_time = get_current_time()
         nodes_to_remove = []
-        print_nodes = False
         with self.lock:
             for node_id, (last_heartbeat, missed_count) in list(self.node_heartbeats.items()):
                 if current_time - last_heartbeat > (self.config.timeout * 1000):

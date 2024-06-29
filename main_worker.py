@@ -6,7 +6,7 @@ import signal
 
 def create_handle_message() -> Callable[[dict], Any]:
     def handle_message(message: dict) -> Any:
-        # print(f"Custom handler received: {message}")
+        print(f"Custom handler received: {message}")
         return [message]
     return handle_message
 
