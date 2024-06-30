@@ -160,7 +160,8 @@ def setup_logging(log_folder):
 
 
 def patch_logging(record):
-    log_executor.submit(logger.complete, record)
+    pass
+    # log_executor.submit(logger.complete, record)
 
 
 def cleanup_old_logs(log_folder):

@@ -23,7 +23,6 @@ class ZeroMQHeartbeatSender(ZeroMQHeartbeat):
         return ZeroMQHeartbeatType.SENDER
 
     def _run(self):
-        logger.info("Heartbeat sender: _run")
         self.connect()
 
         if self.is_connected():

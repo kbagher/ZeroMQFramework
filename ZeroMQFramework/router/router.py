@@ -57,16 +57,19 @@ class ZeroMQRouter(ZeroMQBase):
         except Exception as e:
             logger.error(f"Unknown exception occurred: {e}")
         finally:
-            logger.info("Router is stopping...")
-            logger.info("Cleaning up...")
             self.cleanup()
 
+    def shutdown_initiated(self):
+        self.strategy.shutdown_routing()
 
     def cleanup(self):
         logger.info("Router is shutting down, performing cleanup...")
         if self.frontend_socket:
             self.frontend_socket.close()
+            self.poller.unregister(self.frontend_socket)
         if self.backend_socket:
             self.backend_socket.close()
+            self.poller.unregister(self.backend_socket)
+        # self.strategy.shutdown_routing()
         super().cleanup()
         logger.info("Cleaned up ZeroMQ sockets and context.")

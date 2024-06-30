@@ -21,5 +21,5 @@ class ZeroMQRoutingProxy(ZeroMQRoutingStrategy):
                 frontend_socket.send_multipart(message)
 
     def shutdown_routing(self):
-        self.shutdown_requested = True
         logger.info("Shutting down routing proxy...")
+        self.shutdown_requested = True

@@ -202,6 +202,16 @@ class ZeroMQBase(threading.Thread):
     def request_shutdown(self, signum, frame):
         logger.warning(f"Received signal {signum}, shutting down gracefully...")
         self.shutdown_requested = True
+        self.shutdown_initiated()
+
+    @abstractmethod
+    def shutdown_initiated(self):
+        """
+        Abstract method to be implemented by subclasses for cleaning up resources.
+        This method should be overridden to include any subclass-specific resource cleanup.
+        No need to clean any resources that are managed by ZeroMQBase, only cleanup your resources
+        """
+        pass
 
     def cleanup(self):
         """
@@ -214,6 +224,9 @@ class ZeroMQBase(threading.Thread):
         :return: None
         """
         logger.debug("Performing cleanup...")
+        for socket in self.poller.sockets:
+            logger.debug(f"Unregistering socket {socket}")
+            self.poller.unregister(socket)
         if self.socket_monitor:
             self.socket_monitor.stop()
         if self.heartbeat:
@@ -222,9 +235,7 @@ class ZeroMQBase(threading.Thread):
         if self.socket:
             logger.debug(f"{self.node_type.value} is closing socket...")
             self.socket.close()  # Close the socket
-        for socket in self.poller.sockets:
-            logger.debug(f"Unregistering socket {socket}")
-            self.poller.unregister(socket)
+
         logger.debug(f"{self.node_type.value} is terminating context...")
         self.context.term()  # Terminate the context
         logger.debug("Cleanup complete.")

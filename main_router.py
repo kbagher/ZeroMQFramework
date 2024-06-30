@@ -15,10 +15,9 @@ def main():
         # What o use:
         #   If workers are in the same server (running as processes), you can use IPC (ZeroMQIPCConnection)
         #   If workers are on different machines, you can use TCP (ZeroMQTCPConnection)
-        ipc_path = "/tmp/my_super_app.ipc" # IPC path, make sure it's unique for each application.
+        ipc_path = "/tmp/my_super_app.ipc"  # IPC path, make sure it's unique for each application.
         # backend_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
         backend_conn = ZeroMQTCPConnection(port=5556)
-
 
         # Heartbeat
         ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
