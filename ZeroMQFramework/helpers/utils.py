@@ -131,7 +131,10 @@ def setup_logging(log_folder):
     :param log_folder: The folder to store the log files.
     :return: None
 
-    This method sets up logging for the application. It creates the log folder if it does not already exist, creates a timestamp for the log file name, sets the log file path, adds the log file to the logger, removes the default stderr logger, configures non-blocking logging using a thread pool, and optionally cleans up old log files in the log folder.
+    This method sets up logging for the application. It creates the log folder if it does not already exist,
+    creates a timestamp for the log file name, sets the log file path, adds the log file to the logger,
+    removes the default stderr logger, configures non-blocking logging using a thread pool,
+    and optionally cleans up old log files in the log folder.
     """
     if not os.path.exists(log_folder):
         os.makedirs(log_folder)
@@ -147,7 +150,7 @@ def setup_logging(log_folder):
     logger.remove(0)
 
     # Add a logger for the console with a simpler format
-    logger.add(sys.stderr, level="INFO", format="<green>{time}</green> - <level>{message}</level>")
+    logger.add(sys.stderr, level="INFO", format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> - <level>{message}</level>")
 
     # Setup non-blocking logging using the thread pool
     logger.configure(patcher=patch_logging)

@@ -20,7 +20,6 @@ class ZeroMQWorker(ZeroMQBase, ZeroMQProcessingBase, threading.Thread):
                  heartbeat_config: ZeroMQHeartbeatConfig = None):
         super().__init__(config_file, connection, node_type, handle_message, context, heartbeat_config)
 
-
     def run(self):
         self.start_worker()
 

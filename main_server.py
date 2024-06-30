@@ -24,19 +24,19 @@ def main():
 
 
     # Define the connection
-    connection = ZeroMQTCPConnection(port=server_port, host=server_host)
+    connection = ZeroMQTCPConnection(port=5556, host=server_host)
     ipc_path = "/tmp/my_super_app.ipc"  # IPC path, make sure it's unique for each application.
     # connection = ZeroMQIPCConnection(ipc_path=ipc_path)
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
-    # heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
-    heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_heartbeat_host)
+    heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    # heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_heartbeat_host)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1)
 
     # Create the worker in REP mode
     worker = ZeroMQWorker(config_file=config_file, connection=connection, handle_message=handle_message,
                           heartbeat_config=heartbeat_config,
-                          node_type=ZeroMQNodeType.SERVER)
+                          node_type=ZeroMQNodeType.WORKER)
 
     # Start the worker thread
     worker.start()

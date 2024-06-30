@@ -42,7 +42,7 @@ def main():
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
     connection = ZeroMQTCPConnection(port=server_port, host=server_host)
 
-    client_obj = ZeroMQClient(config_file=config_file, connection=connection, heartbeat_config=heartbeat_config,
+    client_obj = ZeroMQClient(config_file=config_file, connection=connection, heartbeat_config=None,
                               timeout=5)
     batch_start_time = time.time()
 

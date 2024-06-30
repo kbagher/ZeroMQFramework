@@ -222,6 +222,9 @@ class ZeroMQBase(threading.Thread):
         if self.socket:
             logger.debug(f"{self.node_type.value} is closing socket...")
             self.socket.close()  # Close the socket
+        for socket in self.poller.sockets:
+            logger.debug(f"Unregistering socket {socket}")
+            self.poller.unregister(socket)
         logger.debug(f"{self.node_type.value} is terminating context...")
         self.context.term()  # Terminate the context
         logger.debug("Cleanup complete.")
