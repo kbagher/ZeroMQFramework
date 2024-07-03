@@ -52,6 +52,9 @@ class ZeroMQRouter(ZeroMQBase):
             self.strategy.route(self.frontend_socket, self.backend_socket,
                                 poller=self.poller, poll_timeout=self.poller_timeout)
 
+            logger.info(f"router stopped")
+
+
         except zmq.ZMQError as e:
             logger.error(f"ZMQ Error occurred: {e}")
         except Exception as e:

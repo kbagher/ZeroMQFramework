@@ -11,7 +11,7 @@ def handle_message(message: dict) -> Any:
 
 def main():
     setup_logging('logs/server_logs')
-    config_file = 'config.ini'
+    config_file = '../config.ini'
 
     # server_config = load_config('config.ini', 'Server')
     config = load_config(config_file, "general")
@@ -22,10 +22,9 @@ def main():
     server_heartbeat_port = config.get('server_heartbeat_port')
     server_heartbeat_host = config.get('server_heartbeat_host')
 
-
     # Define the connection
     connection = ZeroMQTCPConnection(port=5556, host=server_host)
-    ipc_path = "/tmp/my_super_app.ipc"  # IPC path, make sure it's unique for each application.
+
     # connection = ZeroMQIPCConnection(ipc_path=ipc_path)
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.

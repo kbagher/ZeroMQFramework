@@ -1,8 +1,5 @@
 import random
 import string
-import sys
-
-import client
 from ZeroMQFramework import *
 
 
@@ -25,7 +22,7 @@ def signal_handler(signal, frame):
 
 def main():
     setup_logging('logs/client_logs')
-    config_file = 'config.ini'
+    config_file = '../config.ini'
 
     config = load_config(config_file, "general")
     node_id = config.get('server_host')
@@ -35,14 +32,16 @@ def main():
     server_heartbeat_port = config.get('server_heartbeat_port')
     server_heartbeat_host = config.get('server_heartbeat_host')
 
-    client_id = generate_short_udid()
+    # Just a dummy data to be sent. Not used internally
+    just_a_random_id = generate_short_udid()
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"
-    heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_heartbeat_host)
+    # heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_heartbeat_host)
+    heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=5)
     connection = ZeroMQTCPConnection(port=server_port, host=server_host)
 
-    client_obj = ZeroMQClient(config_file=config_file, connection=connection, heartbeat_config=None,
+    client_obj = ZeroMQClient(config_file=config_file, connection=connection, heartbeat_config=heartbeat_config,
                               timeout=5)
     batch_start_time = time.time()
 
@@ -68,7 +67,7 @@ def main():
                     batch_start_time = time.time()
 
                 event_name = ZeroMQEvent.MESSAGE.value
-                event_data = {"content": f"Message {x} from client {client_id}"}
+                event_data = {"content": f"Message {x} from client {just_a_random_id}"}
                 response = client_obj.send_message(event_name, event_data)
 
                 reply_content = response["event_data"]["event_data"]["content"]
@@ -89,7 +88,7 @@ def main():
                 time.sleep(retry_timeout)
                 client_obj.connect()
             except ZeroMQMalformedMessage:
-                logger.error(f"Error: Message malformed: {client_id}")
+                logger.error(f"Error: Message malformed: {just_a_random_id}")
             except ZeroMQTimeoutError:
                 logger.warning("No response received within the timeout period, retrying...")
                 time.sleep(retry_timeout)
