@@ -1,4 +1,4 @@
-from ..helpers.config import ZeroMQConnection
+from ZeroMQFramework.common.connection_protocol import ZeroMQConnection
 
 
 class ZeroMQHeartbeatConfig:

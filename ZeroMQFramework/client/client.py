@@ -1,126 +1,110 @@
-import uuid
-
 import zmq
 
-from ZeroMQFramework.helpers.config import *
+from ZeroMQFramework.common.connection_protocol import *
+from ZeroMQFramework.common.socket_status import ZeroMQSocketStatus
 from ZeroMQFramework.helpers.utils import *
 from ZeroMQFramework.helpers.error import *
-from ZeroMQFramework.heartbeat.heartbeat_sender import ZeroMQHeartbeatSender
+from ZeroMQFramework.common.base import ZeroMQBase
 from ZeroMQFramework.heartbeat.heartbeat_config import ZeroMQHeartbeatConfig
-from ZeroMQFramework.helpers.node_type import ZeroMQNodeType
+from ZeroMQFramework.common.node_type import ZeroMQNodeType
 
 
-class ZeroMQClient:
-    def __init__(self, connection: ZeroMQConnection,
-                 heartbeat_config: ZeroMQHeartbeatConfig = None, timeout: int = 5000,
-                 retry_attempts: int = 3, retry_timeout: int = 1000):
-        self.timeout = timeout
-        self.retry_attempts = retry_attempts
-        self.retry_timeout = retry_timeout
-        self.context = zmq.Context()
-        self.connection = connection
-        self.socket = None
-        self.connected = False
-        self.poller = zmq.Poller()
-        self.monitor = None
-        self.shutdown = False
-        self.node_type = ZeroMQNodeType.CLIENT
+class ZeroMQClient(ZeroMQBase):
+    def __init__(self, config_file: str, connection: ZeroMQConnection,
+                 heartbeat_config: ZeroMQHeartbeatConfig = None, timeout: int = 5):
+        super().__init__(config_file, connection, ZeroMQNodeType.CLIENT, None, None, heartbeat_config)
+        self.timeout = timeout * 1000  # convert to ms. Don't't change the multiplication unless u know what you are
+        # doing!
+
         self.heartbeat_started = False
-        # Random ID (not used in server but won't make any difference)
-        self.node_id = uuid.uuid4().__str__()
+        self.poller = zmq.Poller()
+        self.connection_string = self.connection.get_connection_string(bind=False)
+        self._configure_socket()
+        self._reinitialize = False
 
-        # Heartbeat
-        self.heartbeat_config = heartbeat_config
-        self.heartbeat_enabled = self.heartbeat_config is not None
-
-        # Sender heartbeat if it is a worker
-        if self.heartbeat_enabled:
-            self.heartbeat = ZeroMQHeartbeatSender(context=self.context,
-                                                   node_id=self.node_id, node_type=ZeroMQNodeType.CLIENT,
-                                                   config=self.heartbeat_config)
-        else:
-            self.heartbeat = None
+    def _configure_socket(self):
+        """Configure the ZMQ socket with the appropriate options."""
+        self.socket.setsockopt(zmq.LINGER, 0)
+        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout)  # milliseconds
+        self.socket.setsockopt(zmq.SNDTIMEO, self.timeout)  # milliseconds
 
     def connect(self):
-        self.socket = self.context.socket(zmq.REQ)
-        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout)
-        self.socket.setsockopt(zmq.SNDTIMEO, self.timeout)
-        self.socket.setsockopt(zmq.IDENTITY, self.node_id.encode('utf-8'))  # Set the worker ID
+        """
+        Establishes a connection using the generated connection string.
 
-        connection_string = self.connection.get_connection_string(bind=False)
-        self.socket.connect(connection_string)
-        self.connected = True
+        :return: True if the connection is successful, False otherwise.
+        """
+        logger.debug(f"Connect")
+        logger.debug(f"heartbeat_enabled = {self.heartbeat_enabled}, heartbeat_started = {self.heartbeat_started}")
         if self.heartbeat_enabled and not self.heartbeat_started:
-            logger.info(f'Client: Staring heartbeat')
+            logger.info('Client: Starting heartbeat')
             self.heartbeat.start()
             self.heartbeat_started = True
 
-        logger.info(f'Client: Client connected to node at {connection_string}')
+        logger.debug(f"socket_status = {self.socket_status.value}, _reinitialize = {self._reinitialize}, "
+                     f"socket_requires_reset = {self.socket_requires_reset}")
+        if self.socket_status == ZeroMQSocketStatus.CLOSED and self._reinitialize or self.socket_requires_reset:
+            logger.info("Client: Reinitializing socket due to closed status")
+            self._reinitialize_socket()
+            self._configure_socket()
 
-    def reconnect(self):
-        self.cleanup_socket()
-        attempts = 0
-        while attempts < self.retry_attempts:
-            try:
-                self.connect()
-                return
-            except zmq.ZMQError as e:
-                logger.warning(f"Client: Reconnect attempt {attempts + 1}/{self.retry_attempts} failed: {e}")
-                attempts += 1
-                time.sleep(self.retry_timeout / 1000)
-        raise ZeroMQConnectionError("Client: Unable to reconnect after several attempts")
+        logger.info(f'Client: establishing connection on {self.connection_string}...')
+        self.socket.connect(self.connection_string)
+
+        if self.wait_for_connection():
+            logger.info(f'Client: connected on {self.connection_string} successfully')
+            self._reinitialize = True
+            return True
+        else:
+            logger.warning(f'Client: failed to connect on {self.connection_string}')
+            self._reinitialize = False
+            return False
 
     def send_message(self, event_name: str, event_data: dict):
-        if not self.connected:
-            self.reconnect()
+        """
+        Sends a message using the ZeroMQ socket.
+
+        :param event_name: The name of the event being sent.
+        :param event_data: The data associated with the event.
+        :return: The response received after sending the message.
+        :raises ZeroMQQSocketDisconnected: If the socket state is disconnected.
+        :raises ZeroMQQSocketClosed: If the socket state is closed.
+        :raises ZeroMQTimeoutError: If no response is received within the timeout period.
+        :raises ZeroMQQSocketInvalid: If the socket is in an invalid state.
+        :raises ZeroMQClientError: If a general ZMQError occurs.
+        """
+        if self.socket_status == ZeroMQSocketStatus.DISCONNECTED:
+            raise ZeroMQQSocketDisconnected("Socket state is disconnected")
+        elif self.socket_status == ZeroMQSocketStatus.CLOSED:
+            raise ZeroMQQSocketClosed("Socket state is closed")
 
         message = create_message(event_name, event_data)
-        attempts = 0
-        while attempts < self.retry_attempts and not self.shutdown:
-            try:
-                self.socket.send_multipart(message)
-                res = self.receive_message()
-                return res
-            except zmq.Again as e:
-                logger.warning("Client: No response received within the timeout period, retrying...")
-                attempts += 1
-                time.sleep(self.retry_timeout / 1000)
-            except zmq.ZMQError as e:
-                if e.errno == zmq.EFSM or e.errno == zmq.EAGAIN:
-                    logger.error("Client: Socket is in an invalid state, reconnecting socket.")
-                    self.reconnect()
-                else:
-                    logger.error(f"Client: ZMQError occurred: {e}, reconnecting socket.")
-                    self.reconnect()
-        raise ZeroMQTimeoutError("Client: Unable to send message after several attempts")
+
+        try:
+            if self.socket_status == ZeroMQSocketStatus.CLOSED:
+                raise zmq.ZMQError
+            self.socket.send_multipart(message)
+            return self.receive_message()
+        except zmq.Again:
+            err = f"Client: No response received within the timeout period {self.timeout / 1000} seconds"
+            logger.warning(err)
+            raise ZeroMQTimeoutError(err)
+        except zmq.ZMQError as e:
+            if e.errno in (zmq.EFSM, zmq.EAGAIN):
+                err = f"Socket is in an invalid state. {e}"
+                logger.error(err)
+                self.socket_requires_reset = True
+                raise ZeroMQQSocketInvalid(err)
+            else:
+                err = f"Client: ZMQError occurred: {e}."
+                logger.error(err)
+                raise ZeroMQClientError(err)
 
     def receive_message(self):
         reply = self.socket.recv_multipart()
         return parse_message(reply)
 
-    def request_shutdown(self, signum, frame):
-        logger.warning(f"Client: Client Received signal {signum}, shutting down gracefully...")
-        self.shutdown = True
-
-    def cleanup_socket(self):
-        logger.info("Client: Cleaning up socket")
-        if self.socket:
-            logger.info("Client: Closing socket")
-            self.socket.close()
-            self.connected = False
-            logger.info("Client: Socket closed")
-
     def cleanup(self):
         logger.info("Client: Cleaning up client...")
-        if self.monitor:
-            logger.info("Client: Cleaning up monitor")
-            self.monitor.stop()
-            logger.info("Client: Monitor Cleaned")
-        if self.heartbeat_enabled:
-            logger.info("Client: Client is calling stop heartbeat...")
-            self.heartbeat.stop()  # Wait for the heartbeat thread to stop
-        self.cleanup_socket()
-        logger.info("Client: Socket cleaned up")
-        logger.info("Client: Terminating context")
-        self.context.term()
+        super().cleanup()
         logger.info("Client: Cleaned up ZeroMQ sockets and context.")

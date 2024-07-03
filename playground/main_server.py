@@ -11,26 +11,31 @@ def handle_message(message: dict) -> Any:
 
 def main():
     setup_logging('logs/server_logs')
+    config_file = '../config.ini'
 
-    server_config = load_config('config.ini', 'Server')
-    server_host = server_config['host']
-    server_port = server_config.getint('server_port')
-    server_heartbeat_port = server_config.getint('server_heartbeat_port')
+    # server_config = load_config('config.ini', 'Server')
+    config = load_config(config_file, "general")
+    node_id = config.get('server_host')
+
+    server_host = config.get('server_host')
+    server_port = config.get('server_port')
+    server_heartbeat_port = config.get('server_heartbeat_port')
+    server_heartbeat_host = config.get('server_heartbeat_host')
 
     # Define the connection
-    connection = ZeroMQTCPConnection(port=server_port, host=server_host)
-    ipc_path = "/tmp/my_super_app.ipc"  # IPC path, make sure it's unique for each application.
+    connection = ZeroMQTCPConnection(port=5556, host=server_host)
+
     # connection = ZeroMQIPCConnection(ipc_path=ipc_path)
 
     ipc_path = "/tmp/my_super_app_heartbeat.ipc"  # IPC path, make sure it's unique for each application.
-    # heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
-    heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_host)
+    heartbeat_conn = ZeroMQIPCConnection(ipc_path=ipc_path)
+    # heartbeat_conn = ZeroMQTCPConnection(port=server_heartbeat_port, host=server_heartbeat_host)
     heartbeat_config = ZeroMQHeartbeatConfig(heartbeat_conn, interval=1)
 
-
     # Create the worker in REP mode
-    worker = ZeroMQWorker(connection=connection, handle_message=handle_message, heartbeat_config=heartbeat_config,
-                          node_type=ZeroMQNodeType.SERVER)
+    worker = ZeroMQWorker(config_file=config_file, connection=connection, handle_message=handle_message,
+                          heartbeat_config=heartbeat_config,
+                          node_type=ZeroMQNodeType.WORKER)
 
     # Start the worker thread
     worker.start()
