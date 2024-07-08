@@ -10,7 +10,9 @@ setup(
         "setuptools==70.2.0"
     ],
     include_package_data=True,
-    description="ZeroMQFramework is a robust and flexible framework designed to simplify the creation of routers, servers, clients, and workers using ZeroMQ.",
+    description="A simple and flexible framework designed to simplify the creation of a req/reply routers, servers, clients, and workers using ZeroMQ.",
+    long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     author="Kassem Bagher",
     author_email="kassem@bagher.me",
     url="https://github.com/kbagher/ZeroMQFramework",
